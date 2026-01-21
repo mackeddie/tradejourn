@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
+import { OpenPositions } from '@/components/dashboard/OpenPositions';
 import { calculateStats } from '@/utils/analytics';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -105,6 +106,9 @@ export default function Dashboard() {
             icon={TrendingUp}
           />
         </div>
+
+        {/* Open Positions - Live Prices */}
+        <OpenPositions trades={trades} />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
