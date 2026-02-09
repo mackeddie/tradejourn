@@ -9,6 +9,9 @@ import {
   getTradesByAssetClass,
   getMonthlyPerformance,
   getWinLossDistribution,
+  getStrategyPerformance,
+  getExitReasonStats,
+  getDayOfWeekPerformance,
 } from '@/utils/analytics';
 import {
   LineChart,
@@ -33,7 +36,8 @@ import {
   Scale,
 } from 'lucide-react';
 
-const COLORS = ['hsl(145, 70%, 45%)', 'hsl(0, 85%, 60%)', 'hsl(220, 10%, 50%)'];
+const COLORS = ['hsl(var(--chart-profit))', 'hsl(var(--chart-loss))', 'hsl(var(--muted-foreground))'];
+const ASSET_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-profit))', 'hsl(var(--chart-loss))'];
 
 export default function Analytics() {
   const { trades, loading } = useTrades();
@@ -42,6 +46,9 @@ export default function Analytics() {
   const assetData = getTradesByAssetClass(trades);
   const monthlyData = getMonthlyPerformance(trades);
   const winLossData = getWinLossDistribution(trades);
+  const strategyData = getStrategyPerformance(trades);
+  const exitData = getExitReasonStats(trades);
+  const dayData = getDayOfWeekPerformance(trades);
 
   const formatCurrency = (value: number) => {
     const formatted = Math.abs(value).toFixed(2);
@@ -115,11 +122,11 @@ export default function Analytics() {
             trend="down"
           />
           <StatCard
-            title="Risk/Reward Ratio"
-            value={stats.averageRR.toFixed(2)}
-            subtitle="Avg win / Avg loss"
-            icon={Scale}
-            trend={stats.averageRR >= 1 ? 'up' : 'down'}
+            title="Expectancy"
+            value={formatCurrency(stats.expectancy)}
+            subtitle="Expected $ per trade"
+            icon={Percent}
+            trend={stats.expectancy > 0 ? 'up' : 'down'}
           />
         </div>
 
@@ -221,6 +228,113 @@ export default function Analytics() {
 
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Performance */}
+          <Card className="gradient-card">
+            <CardHeader>
+              <CardTitle className="font-display">Monthly Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyData.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No monthly data available
+                </div>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyData}>
+                      <XAxis 
+                        dataKey="month"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `$${value}`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number, name: string) => {
+                          if (name === 'profit') return [`$${value.toFixed(2)}`, 'Profit'];
+                          if (name === 'winRate') return [`${value.toFixed(0)}%`, 'Win Rate'];
+                          return [value, 'Trades'];
+                        }}
+                      />
+                      <Bar 
+                        dataKey="profit" 
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Day of Week Performance */}
+          <Card className="gradient-card">
+            <CardHeader>
+              <CardTitle className="font-display">Performance by Day</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {trades.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dayData}>
+                      <XAxis 
+                        dataKey="day"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `$${value}`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number, name: string) => {
+                          if (name === 'profit') return [`$${value.toFixed(2)}`, 'P&L'];
+                          if (name === 'winRate') return [`${value.toFixed(0)}%`, 'Win Rate'];
+                          return [value, 'Trades'];
+                        }}
+                      />
+                      <Bar 
+                        dataKey="profit" 
+                        fill="hsl(var(--accent))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Performance by Asset Class */}
           <Card className="gradient-card">
             <CardHeader>
@@ -258,7 +372,10 @@ export default function Analytics() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: number) => [`$${value.toFixed(2)}`, 'Profit']}
+                        formatter={(value: number, name: string) => {
+                          if (name === 'profit') return [`$${value.toFixed(2)}`, 'P&L'];
+                          return [value, 'Trades'];
+                        }}
                       />
                       <Bar 
                         dataKey="profit" 
@@ -272,33 +389,36 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Monthly Performance */}
+          {/* Strategy Performance */}
           <Card className="gradient-card">
             <CardHeader>
-              <CardTitle className="font-display">Monthly Performance</CardTitle>
+              <CardTitle className="font-display">Strategy Performance</CardTitle>
             </CardHeader>
             <CardContent>
-              {monthlyData.length === 0 ? (
+              {strategyData.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  No monthly data available
+                  Add strategies to your trades to see performance
                 </div>
               ) : (
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData}>
+                    <BarChart data={strategyData.slice(0, 5)} layout="vertical">
                       <XAxis 
-                        dataKey="month"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis 
+                        type="number"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                         tickFormatter={(value) => `$${value}`}
+                      />
+                      <YAxis 
+                        type="category"
+                        dataKey="strategy"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        width={100}
                       />
                       <Tooltip
                         contentStyle={{
@@ -307,14 +427,15 @@ export default function Analytics() {
                           borderRadius: '8px',
                         }}
                         formatter={(value: number, name: string) => {
-                          if (name === 'profit') return [`$${value.toFixed(2)}`, 'Profit'];
-                          return [value, 'Trades'];
+                          if (name === 'totalPL') return [`$${value.toFixed(2)}`, 'P&L'];
+                          if (name === 'winRate') return [`${value.toFixed(0)}%`, 'Win Rate'];
+                          return [value, name];
                         }}
                       />
                       <Bar 
-                        dataKey="profit" 
+                        dataKey="totalPL" 
                         fill="hsl(var(--accent))"
-                        radius={[4, 4, 0, 0]}
+                        radius={[0, 4, 4, 0]}
                       />
                     </BarChart>
                   </ResponsiveContainer>

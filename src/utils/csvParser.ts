@@ -1,4 +1,4 @@
-import { TradeFormData, AssetClass, TradeDirection } from '@/types/trade';
+import { TradeFormData, AssetClass, TradeDirection, TradeStatus, ExitReason } from '@/types/trade';
 
 interface MT5HistoryRow {
   'Open Time'?: string;
@@ -91,6 +91,21 @@ function parseDate(dateStr: string): Date | null {
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function determineStatus(profit: string | undefined): TradeStatus {
+  const pl = parseFloat(profit || '0');
+  if (pl > 0) return 'win';
+  if (pl < 0) return 'loss';
+  return 'breakeven';
+}
+
+function determineExitReason(profit: string | undefined, stopLoss: number | undefined, takeProfit: number | undefined): ExitReason {
+  const pl = parseFloat(profit || '0');
+  if (pl > 0 && takeProfit) return 'tp_hit';
+  if (pl < 0 && stopLoss) return 'sl_hit';
+  if (pl === 0) return 'breakeven';
+  return 'manual_close';
+}
+
 export function parseMT5History(rows: MT5HistoryRow[]): TradeFormData[] {
   const trades: TradeFormData[] = [];
   
@@ -111,8 +126,13 @@ export function parseMT5History(rows: MT5HistoryRow[]): TradeFormData[] {
     const lotSize = parseFloat(row.Volume || '0.01');
     const stopLoss = parseFloat(row['S/L'] || '0') || undefined;
     const takeProfit = parseFloat(row['T/P'] || '0') || undefined;
+    const profit = row.Profit;
     
     if (entryPrice <= 0) continue;
+    
+    const status = determineStatus(profit);
+    const exitReason = determineExitReason(profit, stopLoss, takeProfit);
+    const rewardAmount = profit ? Math.abs(parseFloat(profit)) : undefined;
     
     trades.push({
       symbol,
@@ -125,6 +145,9 @@ export function parseMT5History(rows: MT5HistoryRow[]): TradeFormData[] {
       lot_size: lotSize,
       stop_loss: stopLoss,
       take_profit: takeProfit,
+      status,
+      exit_reason: exitReason,
+      reward_amount: rewardAmount,
     });
   }
   

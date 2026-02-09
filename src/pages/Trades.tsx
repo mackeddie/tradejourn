@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Plus, 
@@ -53,13 +53,17 @@ export default function Trades() {
   const [statusFilter, setStatusFilter] = useState<TradeStatus | 'all'>('all');
 
   const filteredTrades = trades.filter(trade => {
-    const matchesSearch = trade.symbol.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = trade.symbol.toLowerCase().includes(search.toLowerCase()) ||
+      (trade.strategy?.toLowerCase().includes(search.toLowerCase()));
     const matchesAsset = assetFilter === 'all' || trade.asset_class === assetFilter;
     const matchesStatus = statusFilter === 'all' || trade.status === statusFilter;
     return matchesSearch && matchesAsset && matchesStatus;
   });
 
-  const formatPL = (pl: number | null) => {
+  const formatPL = (trade: Trade) => {
+    const pl = trade.reward_amount !== null
+      ? (trade.status === 'loss' ? -Math.abs(trade.reward_amount!) : trade.reward_amount!)
+      : trade.profit_loss;
     if (pl === null) return '-';
     const formatted = Math.abs(pl).toFixed(2);
     return pl >= 0 ? `+$${formatted}` : `-$${formatted}`;
@@ -67,12 +71,21 @@ export default function Trades() {
 
   const getStatusBadge = (status: string | null) => {
     const styles = {
-      win: 'bg-success/10 text-success border-success/20',
-      loss: 'bg-destructive/10 text-destructive border-destructive/20',
-      breakeven: 'bg-muted text-muted-foreground',
-      open: 'bg-warning/10 text-warning border-warning/20',
+      win: 'bg-chart-profit/10 text-chart-profit border-chart-profit/20',
+      loss: 'bg-chart-loss/10 text-chart-loss border-chart-loss/20',
+      breakeven: 'bg-muted text-muted-foreground border-muted',
     };
-    return styles[status as keyof typeof styles] || styles.open;
+    return styles[status as keyof typeof styles] || styles.breakeven;
+  };
+
+  const getExitReasonLabel = (reason: string | null) => {
+    const labels: Record<string, string> = {
+      tp_hit: 'TP Hit',
+      sl_hit: 'SL Hit',
+      manual_close: 'Manual',
+      breakeven: 'BE',
+    };
+    return labels[reason || ''] || '-';
   };
 
   if (loading) {
@@ -92,7 +105,7 @@ export default function Trades() {
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="text-3xl font-display font-bold">Trade Log</h1>
+          <h1 className="text-3xl font-display font-bold">Trade Journal</h1>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
               <Link to="/import">
@@ -103,7 +116,7 @@ export default function Trades() {
             <Button asChild>
               <Link to="/trades/new">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Trade
+                Log Trade
               </Link>
             </Button>
           </div>
@@ -116,7 +129,7 @@ export default function Trades() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by symbol..."
+                  placeholder="Search by symbol or strategy..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10"
@@ -137,14 +150,13 @@ export default function Trades() {
               </Select>
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TradeStatus | 'all')}>
                 <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder="Outcome" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All Outcomes</SelectItem>
                   <SelectItem value="win">Win</SelectItem>
                   <SelectItem value="loss">Loss</SelectItem>
                   <SelectItem value="breakeven">Breakeven</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -161,7 +173,7 @@ export default function Trades() {
                 </p>
                 {trades.length === 0 && (
                   <Button asChild>
-                    <Link to="/trades/new">Add Your First Trade</Link>
+                    <Link to="/trades/new">Log Your First Trade</Link>
                   </Button>
                 )}
               </div>
@@ -171,14 +183,14 @@ export default function Trades() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Symbol</TableHead>
+                      <TableHead>Pair</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Direction</TableHead>
-                      <TableHead className="text-right">Entry</TableHead>
-                      <TableHead className="text-right">Exit</TableHead>
-                      <TableHead className="text-right">Lot Size</TableHead>
+                      <TableHead>Exit</TableHead>
+                      <TableHead className="text-right">R:R</TableHead>
                       <TableHead className="text-right">P&L</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>Strategy</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -201,7 +213,7 @@ export default function Trades() {
                         <TableCell>
                           <span className={cn(
                             'flex items-center gap-1 text-sm font-medium',
-                            trade.direction === 'buy' ? 'text-success' : 'text-destructive'
+                            trade.direction === 'buy' ? 'text-chart-profit' : 'text-chart-loss'
                           )}>
                             {trade.direction === 'buy' ? (
                               <ArrowUpRight className="w-4 h-4" />
@@ -211,26 +223,28 @@ export default function Trades() {
                             {trade.direction.toUpperCase()}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {trade.entry_price}
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {getExitReasonLabel(trade.exit_reason)}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
-                          {trade.exit_price || '-'}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {trade.lot_size}
+                          {trade.risk_reward_ratio ? `1:${trade.risk_reward_ratio}` : '-'}
                         </TableCell>
                         <TableCell className={cn(
                           'text-right font-semibold',
-                          trade.profit_loss !== null && trade.profit_loss > 0 && 'text-success',
-                          trade.profit_loss !== null && trade.profit_loss < 0 && 'text-destructive',
+                          trade.status === 'win' && 'text-chart-profit',
+                          trade.status === 'loss' && 'text-chart-loss',
                         )}>
-                          {formatPL(trade.profit_loss)}
+                          {formatPL(trade)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cn('capitalize', getStatusBadge(trade.status))}>
-                            {trade.status || 'open'}
+                            {trade.status || 'pending'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-[150px] truncate">
+                          {trade.strategy || '-'}
                         </TableCell>
                         <TableCell>
                           <AlertDialog>

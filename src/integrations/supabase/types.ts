@@ -48,11 +48,16 @@ export type Database = {
           entry_price: number
           exit_date: string | null
           exit_price: number | null
+          exit_reason: string | null
           id: string
           lessons: string | null
           lot_size: number
+          pips: number | null
           profit_loss: number | null
           reasoning: string | null
+          reward_amount: number | null
+          risk_amount: number | null
+          risk_reward_ratio: number | null
           status: string | null
           stop_loss: number | null
           strategy: string | null
@@ -70,11 +75,16 @@ export type Database = {
           entry_price: number
           exit_date?: string | null
           exit_price?: number | null
+          exit_reason?: string | null
           id?: string
           lessons?: string | null
           lot_size: number
+          pips?: number | null
           profit_loss?: number | null
           reasoning?: string | null
+          reward_amount?: number | null
+          risk_amount?: number | null
+          risk_reward_ratio?: number | null
           status?: string | null
           stop_loss?: number | null
           strategy?: string | null
@@ -92,11 +102,16 @@ export type Database = {
           entry_price?: number
           exit_date?: string | null
           exit_price?: number | null
+          exit_reason?: string | null
           id?: string
           lessons?: string | null
           lot_size?: number
+          pips?: number | null
           profit_loss?: number | null
           reasoning?: string | null
+          reward_amount?: number | null
+          risk_amount?: number | null
+          risk_reward_ratio?: number | null
           status?: string | null
           stop_loss?: number | null
           strategy?: string | null
