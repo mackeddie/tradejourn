@@ -41,37 +41,8 @@ export function useTrades() {
     setLoading(false);
   };
 
-  const calculateProfitLoss = (
-    direction: string,
-    entryPrice: number,
-    exitPrice: number | undefined,
-    lotSize: number
-  ): number | null => {
-    if (!exitPrice) return null;
-    const pips = direction === 'buy' 
-      ? (exitPrice - entryPrice) 
-      : (entryPrice - exitPrice);
-    return pips * lotSize * 100000; // Standard forex lot calculation
-  };
-
-  const determineStatus = (profitLoss: number | null): string | null => {
-    if (profitLoss === null) return 'open';
-    if (profitLoss > 0) return 'win';
-    if (profitLoss < 0) return 'loss';
-    return 'breakeven';
-  };
-
   const addTrade = async (formData: TradeFormData) => {
     if (!user) return { error: new Error('Not authenticated') };
-
-    const profitLoss = calculateProfitLoss(
-      formData.direction,
-      formData.entry_price,
-      formData.exit_price,
-      formData.lot_size
-    );
-
-    const status = determineStatus(profitLoss);
 
     const { error } = await supabase.from('trades').insert({
       user_id: user.id,
@@ -85,8 +56,15 @@ export function useTrades() {
       lot_size: formData.lot_size,
       stop_loss: formData.stop_loss || null,
       take_profit: formData.take_profit || null,
-      profit_loss: profitLoss,
-      status,
+      profit_loss: formData.reward_amount 
+        ? (formData.status === 'loss' ? -Math.abs(formData.reward_amount) : formData.reward_amount)
+        : null,
+      status: formData.status,
+      exit_reason: formData.exit_reason,
+      risk_reward_ratio: formData.risk_reward_ratio || null,
+      pips: formData.pips || null,
+      risk_amount: formData.risk_amount || null,
+      reward_amount: formData.reward_amount || null,
       strategy: formData.strategy || null,
       reasoning: formData.reasoning || null,
       emotions: formData.emotions || null,
@@ -96,8 +74,8 @@ export function useTrades() {
     if (!error) {
       await fetchTrades();
       toast({
-        title: 'Trade added',
-        description: `${formData.symbol} trade logged successfully.`,
+        title: 'Trade logged',
+        description: `${formData.symbol} trade added successfully.`,
       });
     }
 
@@ -107,24 +85,18 @@ export function useTrades() {
   const updateTrade = async (id: string, formData: Partial<TradeFormData>) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    const existingTrade = trades.find(t => t.id === id);
-    if (!existingTrade) return { error: new Error('Trade not found') };
-
-    const entryPrice = formData.entry_price ?? existingTrade.entry_price;
-    const exitPrice = formData.exit_price ?? existingTrade.exit_price;
-    const direction = formData.direction ?? existingTrade.direction;
-    const lotSize = formData.lot_size ?? existingTrade.lot_size;
-
-    const profitLoss = calculateProfitLoss(direction, entryPrice, exitPrice ?? undefined, lotSize);
-    const status = determineStatus(profitLoss);
-
-    const updateData: Record<string, unknown> = { ...formData, profit_loss: profitLoss, status };
+    const updateData: Record<string, unknown> = { ...formData };
     
     if (formData.entry_date) {
       updateData.entry_date = formData.entry_date.toISOString();
     }
     if (formData.exit_date) {
       updateData.exit_date = formData.exit_date.toISOString();
+    }
+    if (formData.reward_amount !== undefined && formData.status) {
+      updateData.profit_loss = formData.status === 'loss' 
+        ? -Math.abs(formData.reward_amount) 
+        : formData.reward_amount;
     }
 
     const { error } = await supabase

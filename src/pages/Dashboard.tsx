@@ -4,8 +4,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentTrades } from '@/components/dashboard/RecentTrades';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
-import { OpenPositions } from '@/components/dashboard/OpenPositions';
-import { calculateStats } from '@/utils/analytics';
+import { PerformanceSummary } from '@/components/dashboard/PerformanceSummary';
+import { calculateStats, getStrategyPerformance } from '@/utils/analytics';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { 
@@ -15,6 +15,8 @@ import {
   BarChart3,
   Plus,
   Upload,
+  Percent,
+  Scale,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const { trades, loading } = useTrades();
   const stats = calculateStats(trades);
+  const strategyStats = getStrategyPerformance(trades);
 
   const formatCurrency = (value: number) => {
     const formatted = Math.abs(value).toFixed(2);
@@ -70,7 +73,7 @@ export default function Dashboard() {
             <Button asChild>
               <Link to="/trades/new">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Trade
+                Log Trade
               </Link>
             </Button>
           </div>
@@ -100,15 +103,47 @@ export default function Dashboard() {
             trend={stats.profitFactor >= 1 ? 'up' : 'down'}
           />
           <StatCard
-            title="Best Trade"
-            value={formatCurrency(stats.largestWin)}
-            subtitle={`Worst: ${formatCurrency(stats.largestLoss)}`}
-            icon={TrendingUp}
+            title="Avg R:R"
+            value={stats.averageRR.toFixed(2)}
+            subtitle="Risk to Reward"
+            icon={Scale}
+            trend={stats.averageRR >= 1 ? 'up' : 'down'}
           />
         </div>
 
-        {/* Open Positions - Live Prices */}
-        <OpenPositions trades={trades} />
+        {/* Secondary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Expectancy"
+            value={formatCurrency(stats.expectancy)}
+            subtitle="Per trade"
+            icon={Percent}
+            trend={stats.expectancy > 0 ? 'up' : 'down'}
+          />
+          <StatCard
+            title="Best Trade"
+            value={formatCurrency(stats.largestWin)}
+            subtitle="Single best"
+            icon={TrendingUp}
+            trend="up"
+          />
+          <StatCard
+            title="Worst Trade"
+            value={formatCurrency(stats.largestLoss)}
+            subtitle="Single worst"
+            icon={TrendingDown}
+            trend="down"
+          />
+          <StatCard
+            title="Avg Win"
+            value={formatCurrency(stats.averageWin)}
+            subtitle={`Avg Loss: ${formatCurrency(-stats.averageLoss)}`}
+            icon={Target}
+          />
+        </div>
+
+        {/* Performance Summary */}
+        <PerformanceSummary trades={trades} stats={stats} strategyStats={strategyStats} />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

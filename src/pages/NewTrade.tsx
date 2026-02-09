@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useTrades } from '@/hooks/useTrades';
-import { TradeFormData, AssetClass, TradeDirection } from '@/types/trade';
+import { TradeFormData, AssetClass, TradeDirection, TradeStatus, ExitReason } from '@/types/trade';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Select,
@@ -27,11 +28,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Target, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 const tradeSchema = z.object({
-  symbol: z.string().min(1, 'Symbol is required'),
+  symbol: z.string().min(1, 'Symbol is required').max(20, 'Symbol too long'),
   asset_class: z.enum(['forex', 'crypto', 'commodities', 'stocks']),
   direction: z.enum(['buy', 'sell']),
   entry_date: z.string().min(1, 'Entry date is required'),
@@ -41,10 +43,16 @@ const tradeSchema = z.object({
   lot_size: z.coerce.number().positive('Lot size must be positive'),
   stop_loss: z.coerce.number().positive().optional().or(z.literal('')),
   take_profit: z.coerce.number().positive().optional().or(z.literal('')),
-  strategy: z.string().optional(),
-  reasoning: z.string().optional(),
-  emotions: z.string().optional(),
-  lessons: z.string().optional(),
+  status: z.enum(['win', 'loss', 'breakeven']),
+  exit_reason: z.enum(['sl_hit', 'tp_hit', 'manual_close', 'breakeven']),
+  risk_reward_ratio: z.coerce.number().positive().optional().or(z.literal('')),
+  pips: z.coerce.number().optional().or(z.literal('')),
+  risk_amount: z.coerce.number().positive().optional().or(z.literal('')),
+  reward_amount: z.coerce.number().optional().or(z.literal('')),
+  strategy: z.string().max(100, 'Strategy too long').optional(),
+  reasoning: z.string().max(1000, 'Reasoning too long').optional(),
+  emotions: z.string().max(500, 'Emotions too long').optional(),
+  lessons: z.string().max(1000, 'Lessons too long').optional(),
 });
 
 type FormData = z.infer<typeof tradeSchema>;
@@ -62,12 +70,18 @@ export default function NewTrade() {
       asset_class: 'forex',
       direction: 'buy',
       entry_date: new Date().toISOString().slice(0, 16),
-      exit_date: '',
+      exit_date: new Date().toISOString().slice(0, 16),
       entry_price: undefined,
       exit_price: '',
       lot_size: 0.01,
       stop_loss: '',
       take_profit: '',
+      status: 'win',
+      exit_reason: 'tp_hit',
+      risk_reward_ratio: '',
+      pips: '',
+      risk_amount: '',
+      reward_amount: '',
       strategy: '',
       reasoning: '',
       emotions: '',
@@ -75,11 +89,14 @@ export default function NewTrade() {
     },
   });
 
+  const watchStatus = form.watch('status');
+  const watchExitReason = form.watch('exit_reason');
+
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
 
     const tradeData: TradeFormData = {
-      symbol: data.symbol,
+      symbol: data.symbol.trim(),
       asset_class: data.asset_class as AssetClass,
       direction: data.direction as TradeDirection,
       entry_date: new Date(data.entry_date),
@@ -89,10 +106,16 @@ export default function NewTrade() {
       lot_size: data.lot_size,
       stop_loss: data.stop_loss ? Number(data.stop_loss) : undefined,
       take_profit: data.take_profit ? Number(data.take_profit) : undefined,
-      strategy: data.strategy || undefined,
-      reasoning: data.reasoning || undefined,
-      emotions: data.emotions || undefined,
-      lessons: data.lessons || undefined,
+      status: data.status as TradeStatus,
+      exit_reason: data.exit_reason as ExitReason,
+      risk_reward_ratio: data.risk_reward_ratio ? Number(data.risk_reward_ratio) : undefined,
+      pips: data.pips ? Number(data.pips) : undefined,
+      risk_amount: data.risk_amount ? Number(data.risk_amount) : undefined,
+      reward_amount: data.reward_amount ? Number(data.reward_amount) : undefined,
+      strategy: data.strategy?.trim() || undefined,
+      reasoning: data.reasoning?.trim() || undefined,
+      emotions: data.emotions?.trim() || undefined,
+      lessons: data.lessons?.trim() || undefined,
     };
 
     const { error } = await addTrade(tradeData);
@@ -120,23 +143,173 @@ export default function NewTrade() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Trades
           </Link>
-          <h1 className="text-3xl font-display font-bold">Add New Trade</h1>
-          <p className="text-muted-foreground mt-1">Log a new trade with all the details</p>
+          <h1 className="text-3xl font-display font-bold">Log Trade</h1>
+          <p className="text-muted-foreground mt-1">Record your completed trade with all details</p>
         </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <Tabs defaultValue="details" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Trade Details</TabsTrigger>
-                <TabsTrigger value="notes">Notes & Psychology</TabsTrigger>
+            <Tabs defaultValue="outcome" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="outcome">Outcome</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="outcome">
+                <Card className="gradient-card">
+                  <CardHeader>
+                    <CardTitle className="font-display flex items-center gap-2">
+                      <Target className="w-5 h-5 text-primary" />
+                      Trade Outcome
+                    </CardTitle>
+                    <CardDescription>What was the result of this trade?</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Status Selection */}
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trade Result</FormLabel>
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { value: 'win', label: 'Win', icon: TrendingUp, color: 'text-chart-profit' },
+                              { value: 'loss', label: 'Loss', icon: TrendingDown, color: 'text-chart-loss' },
+                              { value: 'breakeven', label: 'Breakeven', icon: Target, color: 'text-muted-foreground' },
+                            ].map(option => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => field.onChange(option.value)}
+                                className={cn(
+                                  "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                                  field.value === option.value 
+                                    ? "border-primary bg-primary/10" 
+                                    : "border-muted hover:border-muted-foreground/50"
+                                )}
+                              >
+                                <option.icon className={cn("w-6 h-6", option.color)} />
+                                <span className="font-medium">{option.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Exit Reason */}
+                    <FormField
+                      control={form.control}
+                      name="exit_reason"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>How did you exit?</FormLabel>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { value: 'tp_hit', label: 'Take Profit Hit', icon: TrendingUp },
+                              { value: 'sl_hit', label: 'Stop Loss Hit', icon: AlertTriangle },
+                              { value: 'manual_close', label: 'Manual Close', icon: Target },
+                              { value: 'breakeven', label: 'Moved to Breakeven', icon: Target },
+                            ].map(option => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => field.onChange(option.value)}
+                                className={cn(
+                                  "flex items-center gap-2 p-3 rounded-lg border-2 transition-all text-left",
+                                  field.value === option.value 
+                                    ? "border-primary bg-primary/10" 
+                                    : "border-muted hover:border-muted-foreground/50"
+                                )}
+                              >
+                                <option.icon className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{option.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Risk/Reward */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="risk_amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Risk Amount ($)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" placeholder="50.00" {...field} />
+                            </FormControl>
+                            <FormDescription>How much did you risk?</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="reward_amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              {watchStatus === 'loss' ? 'Loss Amount ($)' : 'Profit Amount ($)'}
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" placeholder="100.00" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              {watchStatus === 'loss' ? 'How much did you lose?' : 'How much did you make?'}
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="risk_reward_ratio"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Risk:Reward Ratio</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" placeholder="2.0" {...field} />
+                            </FormControl>
+                            <FormDescription>e.g., 2 means 1:2 R:R</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="pips"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pips {watchStatus === 'loss' && '(negative)'}</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" placeholder="25" {...field} />
+                            </FormControl>
+                            <FormDescription>Pips gained/lost</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="details">
                 <Card className="gradient-card">
                   <CardHeader>
-                    <CardTitle className="font-display">Trade Information</CardTitle>
-                    <CardDescription>Enter the basic trade details</CardDescription>
+                    <CardTitle className="font-display">Trade Details</CardTitle>
+                    <CardDescription>Enter the trade specifications</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -145,9 +318,9 @@ export default function NewTrade() {
                         name="symbol"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Symbol</FormLabel>
+                            <FormLabel>Pair/Symbol</FormLabel>
                             <FormControl>
-                              <Input placeholder="EURUSD, BTCUSD, etc." {...field} />
+                              <Input placeholder="EURUSD, BTCUSD, AAPL" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -205,7 +378,7 @@ export default function NewTrade() {
                         name="lot_size"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Lot Size</FormLabel>
+                            <FormLabel>Lot Size / Position Size</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.01" {...field} />
                             </FormControl>
@@ -233,7 +406,7 @@ export default function NewTrade() {
                         name="exit_date"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Exit Date & Time (Optional)</FormLabel>
+                            <FormLabel>Exit Date & Time</FormLabel>
                             <FormControl>
                               <Input type="datetime-local" {...field} />
                             </FormControl>
@@ -261,7 +434,7 @@ export default function NewTrade() {
                         name="exit_price"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Exit Price (Optional)</FormLabel>
+                            <FormLabel>Exit Price</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.00001" placeholder="1.09000" {...field} />
                             </FormControl>
@@ -275,7 +448,7 @@ export default function NewTrade() {
                         name="stop_loss"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Stop Loss (Optional)</FormLabel>
+                            <FormLabel>Stop Loss Price</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.00001" placeholder="1.08200" {...field} />
                             </FormControl>
@@ -289,7 +462,7 @@ export default function NewTrade() {
                         name="take_profit"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Take Profit (Optional)</FormLabel>
+                            <FormLabel>Take Profit Price</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.00001" placeholder="1.09500" {...field} />
                             </FormControl>
@@ -298,6 +471,20 @@ export default function NewTrade() {
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="strategy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Strategy / Setup Used</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Breakout, Trend Following, Support Bounce" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -305,34 +492,20 @@ export default function NewTrade() {
               <TabsContent value="notes">
                 <Card className="gradient-card">
                   <CardHeader>
-                    <CardTitle className="font-display">Notes & Psychology</CardTitle>
-                    <CardDescription>Record your thoughts and emotions</CardDescription>
+                    <CardTitle className="font-display">Trade Analysis</CardTitle>
+                    <CardDescription>Document your thoughts for performance review</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="strategy"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Strategy / Setup</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Breakout, Trend Following, Support/Resistance" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     <FormField
                       control={form.control}
                       name="reasoning"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Trade Reasoning</FormLabel>
+                          <FormLabel>Why did you take this trade?</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="Why did you take this trade? What was your analysis?"
-                              rows={3}
+                              placeholder="Describe your analysis, confluence factors, and what made you enter..."
+                              rows={4}
                               {...field} 
                             />
                           </FormControl>
@@ -349,7 +522,7 @@ export default function NewTrade() {
                           <FormLabel>Emotional State</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="How were you feeling before, during, and after the trade?"
+                              placeholder="How were you feeling? Confident, anxious, FOMO, revenge trading?"
                               rows={3}
                               {...field} 
                             />
@@ -367,8 +540,8 @@ export default function NewTrade() {
                           <FormLabel>Lessons Learned</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="What did you learn from this trade? What would you do differently?"
-                              rows={3}
+                              placeholder="What did you learn? What would you do differently next time?"
+                              rows={4}
                               {...field} 
                             />
                           </FormControl>
@@ -387,7 +560,7 @@ export default function NewTrade() {
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Trade
+                Log Trade
               </Button>
             </div>
           </form>
