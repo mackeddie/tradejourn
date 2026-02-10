@@ -43,12 +43,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { exportTradeLog, exportAnalyticsReport } from '@/utils/exportAnalytics';
+import { exportAnalyticsPdf } from '@/utils/exportPdf';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const COLORS = ['hsl(var(--chart-profit))', 'hsl(var(--chart-loss))', 'hsl(var(--muted-foreground))'];
 const ASSET_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-profit))', 'hsl(var(--chart-loss))'];
 
 export default function Analytics() {
   const { trades, loading } = useTrades();
+  const [exporting, setExporting] = useState(false);
   const stats = calculateStats(trades);
   const equityCurve = getEquityCurve(trades);
   const assetData = getTradesByAssetClass(trades);
@@ -84,7 +88,7 @@ export default function Analytics() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div id="analytics-capture" className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-display font-bold">Analytics</h1>
@@ -106,6 +110,26 @@ export default function Analytics() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => exportTradeLog(trades)}>
                   Full Trade Log (.csv)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exporting}
+                  onClick={async () => {
+                    setExporting(true);
+                    try {
+                      await exportAnalyticsPdf('analytics-capture');
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    'Visual Report (.pdf)'
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
