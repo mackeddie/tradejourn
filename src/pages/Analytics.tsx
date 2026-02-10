@@ -12,6 +12,7 @@ import {
   getStrategyPerformance,
   getExitReasonStats,
   getDayOfWeekPerformance,
+  getPairPerformance,
 } from '@/utils/analytics';
 import {
   LineChart,
@@ -61,6 +62,7 @@ export default function Analytics() {
   const strategyData = getStrategyPerformance(trades);
   const exitData = getExitReasonStats(trades);
   const dayData = getDayOfWeekPerformance(trades);
+  const pairData = getPairPerformance(trades);
 
   const formatCurrency = (value: number) => {
     const formatted = Math.abs(value).toFixed(2);
@@ -496,6 +498,56 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pair Performance */}
+        {pairData.length > 0 && (
+          <Card className="gradient-card">
+            <CardHeader>
+              <CardTitle className="font-display">Performance by Pair</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[Math.max(300, pairData.length * 50)]" style={{ height: Math.max(300, pairData.length * 50) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pairData} layout="vertical">
+                    <XAxis
+                      type="number"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="symbol"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      width={90}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number, name: string) => {
+                        if (name === 'wins') return [value, 'Wins'];
+                        if (name === 'losses') return [value, 'Losses'];
+                        if (name === 'breakeven') return [value, 'Breakeven'];
+                        return [value, name];
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="wins" stackId="a" fill="hsl(var(--chart-profit))" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="losses" stackId="a" fill="hsl(var(--chart-loss))" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="breakeven" stackId="a" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );

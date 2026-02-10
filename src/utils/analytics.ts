@@ -280,3 +280,43 @@ export function getDayOfWeekPerformance(trades: Trade[]): { day: string; trades:
     profit: grouped[index]?.profit || 0,
   }));
 }
+
+export interface PairStats {
+  symbol: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  winRate: number;
+  totalPL: number;
+}
+
+export function getPairPerformance(trades: Trade[]): PairStats[] {
+  const grouped = trades.reduce((acc, trade) => {
+    const symbol = trade.symbol;
+    if (!acc[symbol]) {
+      acc[symbol] = { trades: 0, wins: 0, losses: 0, breakeven: 0, totalPL: 0 };
+    }
+    acc[symbol].trades++;
+    if (trade.status === 'win') acc[symbol].wins++;
+    if (trade.status === 'loss') acc[symbol].losses++;
+    if (trade.status === 'breakeven') acc[symbol].breakeven++;
+    const pl = trade.reward_amount !== null
+      ? (trade.status === 'loss' ? -Math.abs(trade.reward_amount) : trade.reward_amount)
+      : (trade.profit_loss || 0);
+    acc[symbol].totalPL += pl;
+    return acc;
+  }, {} as Record<string, { trades: number; wins: number; losses: number; breakeven: number; totalPL: number }>);
+
+  return Object.entries(grouped)
+    .map(([symbol, data]) => ({
+      symbol,
+      trades: data.trades,
+      wins: data.wins,
+      losses: data.losses,
+      breakeven: data.breakeven,
+      winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0,
+      totalPL: data.totalPL,
+    }))
+    .sort((a, b) => b.trades - a.trades);
+}
