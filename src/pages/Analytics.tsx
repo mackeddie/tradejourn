@@ -33,8 +33,16 @@ import {
   Target, 
   Activity,
   Percent,
-  Scale,
+  Download,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { exportTradeLog, exportAnalyticsReport } from '@/utils/exportAnalytics';
 
 const COLORS = ['hsl(var(--chart-profit))', 'hsl(var(--chart-loss))', 'hsl(var(--muted-foreground))'];
 const ASSET_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-profit))', 'hsl(var(--chart-loss))'];
@@ -77,11 +85,31 @@ export default function Analytics() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-bold">Analytics</h1>
-          <p className="text-muted-foreground mt-1">
-            Deep dive into your trading performance
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold">Analytics</h1>
+            <p className="text-muted-foreground mt-1">
+              Deep dive into your trading performance
+            </p>
+          </div>
+          {trades.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportAnalyticsReport(trades)}>
+                  Analytics Report (.csv)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportTradeLog(trades)}>
+                  Full Trade Log (.csv)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Stats Grid */}
