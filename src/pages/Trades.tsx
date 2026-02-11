@@ -40,6 +40,7 @@ import {
   Search, 
   Upload, 
   Trash2, 
+  Pencil,
   ArrowUpRight, 
   ArrowDownRight,
   Filter,
@@ -247,6 +248,17 @@ export default function Trades() {
                           {trade.strategy || '-'}
                         </TableCell>
                         <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              asChild
+                            >
+                              <Link to={`/trades/${trade.id}`}>
+                                <Pencil className="w-4 h-4 text-muted-foreground" />
+                              </Link>
+                            </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -275,6 +287,7 @@ export default function Trades() {
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

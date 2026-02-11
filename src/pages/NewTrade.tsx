@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,9 +59,12 @@ type FormData = z.infer<typeof tradeSchema>;
 
 export default function NewTrade() {
   const [isLoading, setIsLoading] = useState(false);
-  const { addTrade } = useTrades();
+  const { trades, addTrade, updateTrade } = useTrades();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
+  const existingTrade = isEditing ? trades.find(t => t.id === id) : null;
 
   const form = useForm<FormData>({
     resolver: zodResolver(tradeSchema),
@@ -88,6 +91,33 @@ export default function NewTrade() {
       lessons: '',
     },
   });
+
+  useEffect(() => {
+    if (existingTrade) {
+      form.reset({
+        symbol: existingTrade.symbol,
+        asset_class: existingTrade.asset_class as AssetClass,
+        direction: existingTrade.direction as TradeDirection,
+        entry_date: new Date(existingTrade.entry_date).toISOString().slice(0, 16),
+        exit_date: existingTrade.exit_date ? new Date(existingTrade.exit_date).toISOString().slice(0, 16) : '',
+        entry_price: existingTrade.entry_price,
+        exit_price: existingTrade.exit_price ?? '',
+        lot_size: existingTrade.lot_size,
+        stop_loss: existingTrade.stop_loss ?? '',
+        take_profit: existingTrade.take_profit ?? '',
+        status: (existingTrade.status as TradeStatus) ?? 'win',
+        exit_reason: (existingTrade.exit_reason as ExitReason) ?? 'tp_hit',
+        risk_reward_ratio: existingTrade.risk_reward_ratio ?? '',
+        pips: existingTrade.pips ?? '',
+        risk_amount: existingTrade.risk_amount ?? '',
+        reward_amount: existingTrade.reward_amount ?? '',
+        strategy: existingTrade.strategy ?? '',
+        reasoning: existingTrade.reasoning ?? '',
+        emotions: existingTrade.emotions ?? '',
+        lessons: existingTrade.lessons ?? '',
+      });
+    }
+  }, [existingTrade]);
 
   const watchStatus = form.watch('status');
   const watchExitReason = form.watch('exit_reason');
@@ -118,12 +148,14 @@ export default function NewTrade() {
       lessons: data.lessons?.trim() || undefined,
     };
 
-    const { error } = await addTrade(tradeData);
+    const { error } = isEditing && id
+      ? await updateTrade(id, tradeData)
+      : await addTrade(tradeData);
     setIsLoading(false);
 
     if (error) {
       toast({
-        title: 'Error adding trade',
+        title: isEditing ? 'Error updating trade' : 'Error adding trade',
         description: error.message,
         variant: 'destructive',
       });
@@ -143,8 +175,8 @@ export default function NewTrade() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Trades
           </Link>
-          <h1 className="text-3xl font-display font-bold">Log Trade</h1>
-          <p className="text-muted-foreground mt-1">Record your completed trade with all details</p>
+          <h1 className="text-3xl font-display font-bold">{isEditing ? 'Edit Trade' : 'Log Trade'}</h1>
+          <p className="text-muted-foreground mt-1">{isEditing ? 'Update your trade details' : 'Record your completed trade with all details'}</p>
         </div>
 
         <Form {...form}>
@@ -560,7 +592,7 @@ export default function NewTrade() {
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Log Trade
+                {isEditing ? 'Update Trade' : 'Log Trade'}
               </Button>
             </div>
           </form>
