@@ -47,6 +47,8 @@
     --chart-3: 38 95% 55%;
     --chart-4: 0 85% 60%;
     --chart-5: 200 85% 55%;
+    --chart-profit: 145 70% 45%;
+    --chart-loss: 0 85% 60%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 30% 15%;
@@ -98,6 +100,8 @@
     --chart-3: 38 90% 55%;
     --chart-4: 0 75% 55%;
     --chart-5: 200 80% 60%;
+    --chart-profit: 145 65% 50%;
+    --chart-loss: 0 75% 55%;
 
     --sidebar-background: 220 25% 10%;
     --sidebar-foreground: 220 15% 90%;
