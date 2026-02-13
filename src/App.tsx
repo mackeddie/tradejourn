@@ -13,6 +13,7 @@ import NewTrade from "./pages/NewTrade";
 import Analytics from "./pages/Analytics";
 import ImportCSV from "./pages/ImportCSV";
 import Profile from "./pages/Profile";
+import MT5Settings from "./pages/MT5Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ function AppRoutes() {
       <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
       <Route path="/import" element={<ProtectedRoute><ImportCSV /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/settings/mt5" element={<ProtectedRoute><MT5Settings /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

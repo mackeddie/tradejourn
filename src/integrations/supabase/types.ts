@@ -52,6 +52,7 @@ export type Database = {
           id: string
           lessons: string | null
           lot_size: number
+          mt5_ticket: string | null
           pips: number | null
           profit_loss: number | null
           reasoning: string | null
@@ -79,6 +80,7 @@ export type Database = {
           id?: string
           lessons?: string | null
           lot_size: number
+          mt5_ticket?: string | null
           pips?: number | null
           profit_loss?: number | null
           reasoning?: string | null
@@ -106,6 +108,7 @@ export type Database = {
           id?: string
           lessons?: string | null
           lot_size?: number
+          mt5_ticket?: string | null
           pips?: number | null
           profit_loss?: number | null
           reasoning?: string | null
@@ -118,6 +121,36 @@ export type Database = {
           symbol?: string
           take_profit?: number | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_api_keys: {
+        Row: {
+          api_key_hash: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          last_used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          api_key_hash: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          api_key_hash?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_used_at?: string | null
           user_id?: string
         }
         Relationships: []

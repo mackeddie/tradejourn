@@ -20,6 +20,7 @@ import {
   Moon,
   LogOut,
   User,
+  Plug,
 } from 'lucide-react';
 
 const navItems = [
@@ -131,6 +132,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link to="/profile" className="cursor-pointer">
                       <User className="w-4 h-4 mr-2" />
                       Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings/mt5" className="cursor-pointer">
+                      <Plug className="w-4 h-4 mr-2" />
+                      MT5 Connection
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
