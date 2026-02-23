@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   BarChart3,
+  CalendarDays,
   Plus,
   Sun,
   Moon,
@@ -26,6 +27,7 @@ import {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/trades', label: 'Trade Log', icon: ClipboardList },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
