@@ -20,8 +20,6 @@ const MQL5_SCRIPT = `//+--------------------------------------------------------
 input string WebhookURL = "";  // Paste your Webhook URL here
 input string ApiKey     = "";  // Paste your API Key here
 
-#include <Trade\\Trade.mqh>
-
 int lastDealTicket = 0;
 
 int OnInit() {
@@ -48,39 +46,45 @@ void CheckClosedTrades() {
       if(entry != DEAL_ENTRY_OUT) continue;
       if((int)ticket <= lastDealTicket) continue;
 
-      string symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
-      long type = HistoryDealGetInteger(ticket, DEAL_TYPE);
-      double volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
-      double price = HistoryDealGetDouble(ticket, DEAL_PRICE);
-      double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
-      datetime time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+      string sym = HistoryDealGetString(ticket, DEAL_SYMBOL);
+      long dealType = HistoryDealGetInteger(ticket, DEAL_TYPE);
+      double vol = HistoryDealGetDouble(ticket, DEAL_VOLUME);
+      double closePrice = HistoryDealGetDouble(ticket, DEAL_PRICE);
+      double pnl = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+      datetime closeTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
 
       // Find matching position for open price
       long posId = HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
-      double openPrice = 0;
-      datetime openTime = 0;
-      double sl = 0, tp = 0;
+      double entryPrice = 0;
+      datetime entryTime = 0;
+      double slVal = 0, tpVal = 0;
 
       HistorySelectByPosition(posId);
       for(int j = 0; j < HistoryDealsTotal(); j++) {
          ulong t = HistoryDealGetTicket(j);
          if(HistoryDealGetInteger(t, DEAL_ENTRY) == DEAL_ENTRY_IN) {
-            openPrice = HistoryDealGetDouble(t, DEAL_PRICE);
-            openTime = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
+            entryPrice = HistoryDealGetDouble(t, DEAL_PRICE);
+            entryTime = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
             break;
          }
       }
 
-      string direction = (type == DEAL_TYPE_BUY) ? "sell" : "buy";
-      string json = StringFormat(
-         "{\"ticket\":%d,\"symbol\":\"%s\",\"type\":\"%s\",\"volume\":%.2f,"
-         "\"open_price\":%.5f,\"close_price\":%.5f,\"sl\":%.5f,\"tp\":%.5f,"
-         "\"profit\":%.2f,\"open_time\":\"%s\",\"close_time\":\"%s\"}",
-         (int)ticket, symbol, direction, volume,
-         openPrice, price, sl, tp, profit,
-         TimeToString(openTime, TIME_DATE|TIME_SECONDS),
-         TimeToString(time, TIME_DATE|TIME_SECONDS)
-      );
+      string dir = (dealType == DEAL_TYPE_BUY) ? "sell" : "buy";
+      string openTimeStr = TimeToString(entryTime, TIME_DATE|TIME_SECONDS);
+      string closeTimeStr = TimeToString(closeTime, TIME_DATE|TIME_SECONDS);
+
+      string json = "{\\"ticket\\":" + IntegerToString((int)ticket)
+         + ",\\"symbol\\":\\"" + sym + "\\""
+         + ",\\"type\\":\\"" + dir + "\\""
+         + ",\\"volume\\":" + DoubleToString(vol, 2)
+         + ",\\"open_price\\":" + DoubleToString(entryPrice, 5)
+         + ",\\"close_price\\":" + DoubleToString(closePrice, 5)
+         + ",\\"sl\\":" + DoubleToString(slVal, 5)
+         + ",\\"tp\\":" + DoubleToString(tpVal, 5)
+         + ",\\"profit\\":" + DoubleToString(pnl, 2)
+         + ",\\"open_time\\":\\"" + openTimeStr + "\\""
+         + ",\\"close_time\\":\\"" + closeTimeStr + "\\""
+         + "}";
 
       SendWebhook(json);
       lastDealTicket = (int)ticket;
