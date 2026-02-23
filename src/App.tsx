@@ -13,6 +13,7 @@ import NewTrade from "./pages/NewTrade";
 import Analytics from "./pages/Analytics";
 import ImportCSV from "./pages/ImportCSV";
 import Calendar from "./pages/Calendar";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import MT5Settings from "./pages/MT5Settings";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/trades" element={<ProtectedRoute><Trades /></ProtectedRoute>} />
       <Route path="/trades/new" element={<ProtectedRoute><NewTrade /></ProtectedRoute>} />
