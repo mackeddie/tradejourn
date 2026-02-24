@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Trade } from '@/types/trade';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarIcon, ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   startOfMonth,
@@ -14,7 +14,6 @@ import {
   addMonths,
   subMonths,
   getYear,
-  setYear,
   isToday,
 } from 'date-fns';
 
@@ -30,18 +29,7 @@ interface DayData {
 export function TradeCalendar({ trades }: TradeCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Get available years from trades
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    years.add(getYear(new Date()));
-    trades.forEach(t => {
-      if (t.exit_date) years.add(getYear(new Date(t.exit_date)));
-      years.add(getYear(new Date(t.entry_date)));
-    });
-    return Array.from(years).sort();
-  }, [trades]);
-
-  // Aggregate trades by day (using exit_date for closed trades)
+  // Aggregate trades by day
   const dayMap = useMemo(() => {
     const map: Record<string, DayData> = {};
     trades.forEach(trade => {
@@ -55,74 +43,90 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
     return map;
   }, [trades]);
 
+  // Monthly summary
+  const monthlySummary = useMemo(() => {
+    let pnl = 0;
+    let tradeDays = 0;
+    const monthStr = format(currentDate, 'yyyy-MM');
+    Object.entries(dayMap).forEach(([key, data]) => {
+      if (key.startsWith(monthStr)) {
+        pnl += data.pnl;
+        tradeDays++;
+      }
+    });
+    return { pnl, tradeDays };
+  }, [dayMap, currentDate]);
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const formatPnl = (value: number) => {
-    const abs = Math.abs(value).toFixed(2);
+    const abs = Math.abs(value).toFixed(0);
     return value >= 0 ? `$${abs}` : `-$${abs}`;
   };
 
   return (
     <div className="space-y-4">
-      {/* Year selector */}
-      <div className="flex items-center justify-center gap-1">
-        {availableYears.map(year => (
-          <Button
-            key={year}
-            variant={getYear(currentDate) === year ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCurrentDate(setYear(currentDate, year))}
-          >
-            {year}
-          </Button>
-        ))}
-      </div>
-
-      {/* Month navigation */}
-      <div className="flex items-center justify-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
+      {/* Header with month nav and summary */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-display font-semibold">
-            {format(currentDate, 'MMMM')}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-xl"
+            onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-lg font-display font-bold min-w-[140px] text-center">
+            {format(currentDate, 'MMM yyyy')}
           </span>
-          <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-xl"
+            onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          <CalendarIcon className="w-4 h-4 text-muted-foreground ml-1" />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground">PnL:</span>
+            <span className={cn(
+              'font-bold',
+              monthlySummary.pnl >= 0 ? 'text-success' : 'text-destructive'
+            )}>
+              {formatPnl(monthlySummary.pnl)}
+            </span>
+          </div>
+          <div className="text-muted-foreground">
+            Days: {monthlySummary.tradeDays}
+          </div>
+        </div>
       </div>
 
       {/* Calendar grid */}
-      <div className="border rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-7 bg-secondary">
-          {weekDays.map(day => (
+      <div className="rounded-xl border overflow-hidden">
+        {/* Weekday header */}
+        <div className="grid grid-cols-7">
+          {weekDays.map((day, i) => (
             <div
-              key={day}
-              className="p-2 text-center text-sm font-medium text-muted-foreground"
+              key={i}
+              className="py-2 text-center text-sm font-semibold text-muted-foreground"
             >
               {day}
             </div>
           ))}
         </div>
 
-        {/* Days */}
+        {/* Day cells */}
         <div className="grid grid-cols-7">
           {days.map(day => {
             const key = format(day, 'yyyy-MM-dd');
@@ -131,35 +135,40 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
             const today = isToday(day);
             const isProfit = data && data.pnl > 0;
             const isLoss = data && data.pnl < 0;
+            const isBreakeven = data && data.pnl === 0;
 
             return (
               <div
                 key={key}
                 className={cn(
-                  'min-h-[90px] border border-border/50 p-2 transition-colors',
-                  !inMonth && 'opacity-40',
+                  'min-h-[100px] border border-border/30 p-2 flex flex-col items-center transition-colors rounded-lg m-0.5',
+                  !inMonth && 'opacity-30',
+                  isProfit && 'bg-emerald-100 dark:bg-emerald-900/40',
+                  isLoss && 'bg-red-100 dark:bg-red-900/40',
+                  isBreakeven && 'bg-muted/50',
                   today && 'ring-2 ring-primary ring-inset',
-                  data && isProfit && 'bg-success/15',
-                  data && isLoss && 'bg-destructive/15',
                 )}
               >
-                <div className="text-xs font-medium text-muted-foreground">
+                <div className={cn(
+                  'text-base font-bold',
+                  today ? 'text-foreground' : 'text-muted-foreground',
+                  data && inMonth && 'text-foreground',
+                )}>
                   {format(day, 'd')}
                 </div>
-                {inMonth && (
-                  <div className="mt-1 text-center">
-                    <div
-                      className={cn(
-                        'text-sm font-semibold',
-                        isProfit && 'text-success',
-                        isLoss && 'text-destructive',
-                        !data && 'text-muted-foreground',
-                      )}
-                    >
-                      {data ? formatPnl(data.pnl) : '$0.00'}
+                {inMonth && data && (
+                  <div className="mt-auto flex flex-col items-center gap-0.5">
+                    <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                      <span>{data.count}</span>
+                      <ArrowLeftRight className="w-3 h-3" />
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {data ? data.count : 0} trades
+                    <div className={cn(
+                      'text-sm font-bold',
+                      isProfit && 'text-success',
+                      isLoss && 'text-destructive',
+                      isBreakeven && 'text-muted-foreground',
+                    )}>
+                      {formatPnl(data.pnl)}
                     </div>
                   </div>
                 )}
