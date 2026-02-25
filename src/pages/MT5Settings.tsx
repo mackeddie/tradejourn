@@ -13,124 +13,6 @@ import { Copy, Plus, Trash2, Key, Wifi, BookOpen, Download, Activity, CheckCircl
 
 const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mt5-webhook`;
 
-const MQL5_SCRIPT = `//+------------------------------------------------------------------+
-//| TradeJournal_EA.mq5 - Auto-sync trades to TradeJournal           |
-//| Version: 1.10                                                    |
-//+------------------------------------------------------------------+
-#property copyright "TradeJournal"
-#property version   "1.10"
-#property strict
-
-input string WebhookURL = "";  // Paste your Webhook URL here
-input string ApiKey     = "";  // Paste your API Key here
-
-int lastDealTicket = 0;
-
-int OnInit() {
-   if(WebhookURL == "" || ApiKey == "") {
-      Alert("Please set WebhookURL and ApiKey in EA inputs!");
-      return INIT_FAILED;
-   }
-   EventSetTimer(5);
-   Print("TradeJournal EA v1.10 initialized.");
-   return INIT_SUCCEEDED;
-}
-
-void OnDeinit(const int reason) { EventKillTimer(); }
-
-void OnTimer() { CheckClosedTrades(); }
-
-void CheckClosedTrades() {
-   if(!HistorySelect(TimeCurrent() - 86400, TimeCurrent())) return;
-   
-   int total = HistoryDealsTotal();
-   for(int i = total - 1; i >= 0; i--) {
-      ulong ticket = HistoryDealGetTicket(i);
-      if(ticket <= 0) continue;
-      
-      long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
-      if(entry != DEAL_ENTRY_OUT) continue; // Only process closing deals
-      
-      if((int)ticket <= lastDealTicket) continue;
-
-      long posId = HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
-      double vol = HistoryDealGetDouble(ticket, DEAL_VOLUME);
-      double closePrice = HistoryDealGetDouble(ticket, DEAL_PRICE);
-      double pnl = HistoryDealGetDouble(ticket, DEAL_PROFIT);
-      datetime closeTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
-      string sym = HistoryDealGetString(ticket, DEAL_SYMBOL);
-      
-      // Get Open Price and SL/TP from history
-      double entryPrice = 0;
-      datetime entryTime = 0;
-      double slVal = 0, tpVal = 0;
-      
-      if(HistorySelectByPosition(posId)) {
-         for(int j = 0; j < HistoryDealsTotal(); j++) {
-            ulong t = HistoryDealGetTicket(j);
-            if(HistoryDealGetInteger(t, DEAL_ENTRY) == DEAL_ENTRY_IN) {
-               entryPrice = HistoryDealGetDouble(t, DEAL_PRICE);
-               entryTime = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
-               slVal = HistoryDealGetDouble(t, DEAL_SL);
-               tpVal = HistoryDealGetDouble(t, DEAL_TP);
-               break;
-            }
-         }
-      }
-
-      string typeStr = (HistoryDealGetInteger(ticket, DEAL_TYPE) == DEAL_TYPE_BUY) ? "sell" : "buy"; 
-      // Note: DEAL_TYPE on OUT deal is the closing operation
-      
-      string openTimeStr = TimeToString(entryTime, TIME_DATE|TIME_SECONDS);
-      string closeTimeStr = TimeToString(closeTime, TIME_DATE|TIME_SECONDS);
-
-      string json = "{"
-         + "\\"ticket\\":" + IntegerToString((int)ticket)
-         + ",\\"symbol\\":\\"" + sym + "\\""
-         + ",\\"type\\":\\"" + typeStr + "\\""
-         + ",\\"volume\\":" + DoubleToString(vol, 2)
-         + ",\\"open_price\\":" + DoubleToString(entryPrice, 5)
-         + ",\\"close_price\\":" + DoubleToString(closePrice, 5)
-         + ",\\"sl\\":" + DoubleToString(slVal, 5)
-         + ",\\"tp\\":" + DoubleToString(tpVal, 5)
-         + ",\\"profit\\":" + DoubleToString(pnl, 2)
-         + ",\\"open_time\\":\\"" + openTimeStr + "\\""
-         + ",\\"close_time\\":\\"" + closeTimeStr + "\\""
-         + "}";
-
-      if(SendWebhook(json)) {
-         lastDealTicket = (int)ticket;
-         Print("Trade Journal: Synced ticket ", ticket);
-      }
-   }
-}
-
-bool SendWebhook(string json) {
-   string headers = "Content-Type: application/json\\r\\nX-API-Key: " + ApiKey + "\\r\\n";
-   char post[], result[];
-   string resultHeaders;
-   StringToCharArray(json, post, 0, WHOLE_ARRAY, CP_UTF8);
-   ArrayResize(post, ArraySize(post) - 1);
-
-   ResetLastError();
-   int res = WebRequest("POST", WebhookURL, headers, 5000, post, result, resultHeaders);
-   
-   if(res == -1) {
-      int err = GetLastError();
-      Print("WebRequest failed. Error: ", err);
-      if(err == 4014) Print("Tip: Add URL to Tools > Options > Expert Advisors > Allow WebRequest");
-      return false;
-   } 
-   
-   if(res >= 200 && res < 300) {
-      return true;
-   } else {
-      string response = CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8);
-      Print("Server returned error ", res, ": ", response);
-      return false;
-   }
-}`;
-
 export default function MT5Settings() {
   const { keys, loading: keysLoading, createKey, toggleKey, deleteKey } = useWebhookKeys();
   const { lastSync, recentTrades, loading: statusLoading } = useMT5Status();
@@ -140,16 +22,15 @@ export default function MT5Settings() {
   const [creating, setCreating] = useState(false);
 
   const downloadScript = () => {
-    const blob = new Blob([MQL5_SCRIPT], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
+    // Point to the static asset path
+    const downloadUrl = '/TradeJournal_EA.ex5';
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'TradeJournal_EA.mq5';
+    a.href = downloadUrl;
+    a.download = 'TradeJournal_EA.ex5';
     document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    toast({ title: 'EA Script downloaded! Copy it to your MT5 Experts folder.' });
+    toast({ title: 'Downloading compiled EA (.ex5)...' });
   };
 
   const handleCreateKey = async () => {
@@ -359,14 +240,14 @@ export default function MT5Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-bold">MetaTrader 5 Expert Advisor</h4>
-                  <p className="text-xs text-muted-foreground">Version 1.10 • mq5 format</p>
+                  <p className="text-xs text-muted-foreground">Version 1.10 • compiled binary (ex5)</p>
                 </div>
                 <Button onClick={downloadScript}>
-                  <Download className="w-4 h-4 mr-2" /> Download EA Script
+                  <Download className="w-4 h-4 mr-2" /> Download EA (ex5)
                 </Button>
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                This script monitors your account history and sends closed trades to your journal automatically.
+                This is a compiled binary that cannot be edited. It monitors your account history and sends closed trades to your journal automatically.
                 It captures entry/exit prices, symbols, volumes, profits, and SL/TP levels.
               </p>
             </div>
