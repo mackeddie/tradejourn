@@ -36,7 +36,7 @@ export function useTrades() {
         variant: 'destructive',
       });
     } else {
-      setTrades((data || []) as Trade[]);
+      setTrades((data || []) as unknown as Trade[]);
     }
     setLoading(false);
   };
@@ -56,7 +56,7 @@ export function useTrades() {
       lot_size: formData.lot_size,
       stop_loss: formData.stop_loss || null,
       take_profit: formData.take_profit || null,
-      profit_loss: formData.reward_amount 
+      profit_loss: formData.reward_amount
         ? (formData.status === 'loss' ? -Math.abs(formData.reward_amount) : formData.reward_amount)
         : null,
       status: formData.status,
@@ -69,6 +69,11 @@ export function useTrades() {
       reasoning: formData.reasoning || null,
       emotions: formData.emotions || null,
       lessons: formData.lessons || null,
+      tags: formData.tags || [],
+      screenshot_url: formData.screenshot_url || null,
+      needs_review: formData.needs_review || false,
+      setup_type: formData.setup_type || null,
+      probability: formData.probability || null,
     });
 
     if (!error) {
@@ -86,7 +91,7 @@ export function useTrades() {
     if (!user) return { error: new Error('Not authenticated') };
 
     const updateData: Record<string, unknown> = { ...formData };
-    
+
     if (formData.entry_date) {
       updateData.entry_date = formData.entry_date.toISOString();
     }
@@ -94,8 +99,8 @@ export function useTrades() {
       updateData.exit_date = formData.exit_date.toISOString();
     }
     if (formData.reward_amount !== undefined && formData.status) {
-      updateData.profit_loss = formData.status === 'loss' 
-        ? -Math.abs(formData.reward_amount) 
+      updateData.profit_loss = formData.status === 'loss'
+        ? -Math.abs(formData.reward_amount)
         : formData.reward_amount;
     }
 
@@ -158,9 +163,9 @@ export function useTrades() {
       });
     }
 
-    return { 
-      error: errors.length > 0 ? new Error(errors.join(', ')) : null, 
-      imported 
+    return {
+      error: errors.length > 0 ? new Error(errors.join(', ')) : null,
+      imported
     };
   };
 

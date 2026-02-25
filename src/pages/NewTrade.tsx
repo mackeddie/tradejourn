@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +54,10 @@ const tradeSchema = z.object({
   reasoning: z.string().max(1000, 'Reasoning too long').optional(),
   emotions: z.string().max(500, 'Emotions too long').optional(),
   lessons: z.string().max(1000, 'Lessons too long').optional(),
+  tags: z.string().optional(), // We'll handle comma separation
+  screenshot_url: z.string().url('Invalid URL').optional().or(z.literal('')),
+  setup_type: z.enum(['Type 1', 'Type 2', 'Type 3']).optional().or(z.literal('')),
+  probability: z.enum(['High Prob', 'Low Prob']).optional().or(z.literal('')),
 });
 
 type FormData = z.infer<typeof tradeSchema>;
@@ -89,6 +94,10 @@ export default function NewTrade() {
       reasoning: '',
       emotions: '',
       lessons: '',
+      tags: '',
+      screenshot_url: '',
+      setup_type: '',
+      probability: '',
     },
   });
 
@@ -115,6 +124,10 @@ export default function NewTrade() {
         reasoning: existingTrade.reasoning ?? '',
         emotions: existingTrade.emotions ?? '',
         lessons: existingTrade.lessons ?? '',
+        tags: existingTrade.tags?.join(', ') ?? '',
+        screenshot_url: existingTrade.screenshot_url ?? '',
+        setup_type: (existingTrade.setup_type as "Type 1" | "Type 2" | "Type 3") ?? '',
+        probability: (existingTrade.probability as "High Prob" | "Low Prob") ?? '',
       });
     }
   }, [existingTrade]);
@@ -146,6 +159,11 @@ export default function NewTrade() {
       reasoning: data.reasoning?.trim() || undefined,
       emotions: data.emotions?.trim() || undefined,
       lessons: data.lessons?.trim() || undefined,
+      tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+      screenshot_url: data.screenshot_url || undefined,
+      setup_type: data.setup_type || undefined,
+      probability: data.probability || undefined,
+      needs_review: false, // Clearing review flag on save
     };
 
     const { error } = isEditing && id
@@ -168,8 +186,8 @@ export default function NewTrade() {
     <AppLayout>
       <div className="max-w-3xl mx-auto animate-fade-in">
         <div className="mb-6">
-          <Link 
-            to="/trades" 
+          <Link
+            to="/trades"
             className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -182,9 +200,10 @@ export default function NewTrade() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <Tabs defaultValue="outcome" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="outcome">Outcome</TabsTrigger>
                 <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="confluence">Confluence</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
               </TabsList>
 
@@ -217,8 +236,8 @@ export default function NewTrade() {
                                 onClick={() => field.onChange(option.value)}
                                 className={cn(
                                   "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-                                  field.value === option.value 
-                                    ? "border-primary bg-primary/10" 
+                                  field.value === option.value
+                                    ? "border-primary bg-primary/10"
                                     : "border-muted hover:border-muted-foreground/50"
                                 )}
                               >
@@ -252,8 +271,8 @@ export default function NewTrade() {
                                 onClick={() => field.onChange(option.value)}
                                 className={cn(
                                   "flex items-center gap-2 p-3 rounded-lg border-2 transition-all text-left",
-                                  field.value === option.value 
-                                    ? "border-primary bg-primary/10" 
+                                  field.value === option.value
+                                    ? "border-primary bg-primary/10"
                                     : "border-muted hover:border-muted-foreground/50"
                                 )}
                               >
@@ -521,6 +540,106 @@ export default function NewTrade() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="confluence">
+                <Card className="gradient-card">
+                  <CardHeader>
+                    <CardTitle className="font-display">Technical Confluence</CardTitle>
+                    <CardDescription>What made this setup valid?</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="setup_type"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Setup Type</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="grid grid-cols-3 gap-4"
+                            >
+                              {['Type 1', 'Type 2', 'Type 3'].map((type) => (
+                                <FormItem key={type} className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value={type} />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {type}
+                                  </FormLabel>
+                                </FormItem>
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="probability"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Trade Probability</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="grid grid-cols-2 gap-4"
+                            >
+                              {['High Prob', 'Low Prob'].map((prob) => (
+                                <FormItem key={prob} className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value={prob} />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {prob}
+                                  </FormLabel>
+                                </FormItem>
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="tags"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tags</FormLabel>
+                            <FormControl>
+                              <Input placeholder="trend, reversal, breakout (comma separated)" {...field} />
+                            </FormControl>
+                            <FormDescription>Separate tags with commas</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="screenshot_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Screenshot URL</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://tradingview.com/x/..." {...field} />
+                            </FormControl>
+                            <FormDescription>Link to your chart screenshot</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="notes">
                 <Card className="gradient-card">
                   <CardHeader>
@@ -535,10 +654,10 @@ export default function NewTrade() {
                         <FormItem>
                           <FormLabel>Why did you take this trade?</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="Describe your analysis, confluence factors, and what made you enter..."
                               rows={4}
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -553,10 +672,10 @@ export default function NewTrade() {
                         <FormItem>
                           <FormLabel>Emotional State</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="How were you feeling? Confident, anxious, FOMO, revenge trading?"
                               rows={3}
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -571,10 +690,10 @@ export default function NewTrade() {
                         <FormItem>
                           <FormLabel>Lessons Learned</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="What did you learn? What would you do differently next time?"
                               rows={4}
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />

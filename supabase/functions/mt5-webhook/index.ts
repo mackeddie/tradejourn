@@ -134,8 +134,8 @@ Deno.serve(async (req) => {
       take_profit: tp || null,
       profit_loss: pl,
       status,
-      strategy: 'MT5 Auto-Sync',
       mt5_ticket: String(ticket),
+      needs_review: true,
     }
 
     const { data: trade, error: insertError } = await supabase

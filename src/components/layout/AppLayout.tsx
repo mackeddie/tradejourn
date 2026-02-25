@@ -22,6 +22,7 @@ import {
   LogOut,
   User,
   Plug,
+  Wrench,
 } from 'lucide-react';
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/trades', label: 'Trade Log', icon: ClipboardList },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/tools', label: 'Tools', icon: Wrench },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

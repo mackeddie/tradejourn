@@ -16,6 +16,7 @@ import Calendar from "./pages/Calendar";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import MT5Settings from "./pages/MT5Settings";
+import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ function AppRoutes() {
       <Route path="/import" element={<ProtectedRoute><ImportCSV /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings/mt5" element={<ProtectedRoute><MT5Settings /></ProtectedRoute>} />
+      <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

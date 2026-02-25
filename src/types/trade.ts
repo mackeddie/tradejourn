@@ -27,6 +27,11 @@ export interface Trade {
   reasoning: string | null;
   emotions: string | null;
   lessons: string | null;
+  tags: string[] | null;
+  screenshot_url: string | null;
+  needs_review: boolean | null;
+  setup_type: string | null;
+  probability: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +57,11 @@ export interface TradeFormData {
   reasoning?: string;
   emotions?: string;
   lessons?: string;
+  tags?: string[];
+  screenshot_url?: string;
+  needs_review?: boolean;
+  setup_type?: string;
+  probability?: string;
 }
 
 export interface Profile {

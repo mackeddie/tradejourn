@@ -35,8 +35,8 @@ export function RecentTrades({ trades }: RecentTradesProps) {
     <Card className="gradient-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="font-display">Recent Trades</CardTitle>
-        <Link 
-          to="/trades" 
+        <Link
+          to="/trades"
           className="text-sm text-primary hover:underline"
         >
           View all
@@ -46,8 +46,8 @@ export function RecentTrades({ trades }: RecentTradesProps) {
         {recentTrades.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>No trades yet. Start logging your trades!</p>
-            <Link 
-              to="/trades/new" 
+            <Link
+              to="/trades/new"
               className="text-primary hover:underline mt-2 inline-block"
             >
               Add your first trade
@@ -70,9 +70,16 @@ export function RecentTrades({ trades }: RecentTradesProps) {
                   </div>
                   <div>
                     <p className="font-medium">{trade.symbol}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(trade.entry_date), 'MMM d, yyyy')}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(trade.entry_date), 'MMM d, yyyy')}
+                      </p>
+                      {trade.needs_review && (
+                        <Badge variant="secondary" className="h-4 text-[9px] px-1 py-0 bg-primary/20 text-primary border-primary/30 uppercase">
+                          Review
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">

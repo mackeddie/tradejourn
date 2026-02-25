@@ -8,10 +8,10 @@ import { PerformanceSummary } from '@/components/dashboard/PerformanceSummary';
 import { calculateStats, getStrategyPerformance } from '@/utils/analytics';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Target, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
   BarChart3,
   Plus,
   Upload,
@@ -78,6 +78,26 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Needs Review Alert */}
+        {trades.filter(t => t.needs_review).length > 0 && (
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Target className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Review Pending</h3>
+                <p className="text-sm text-muted-foreground">
+                  You have {trades.filter(t => t.needs_review).length} new trades from MT5 that need setup details.
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm">
+              <Link to="/trades">Review Now</Link>
+            </Button>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
