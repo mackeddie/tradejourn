@@ -52,12 +52,22 @@ const tradeSchema = z.object({
   reward_amount: z.coerce.number().optional().or(z.literal('')),
   strategy: z.string().max(100, 'Strategy too long').optional(),
   reasoning: z.string().max(1000, 'Reasoning too long').optional(),
-  emotions: z.string().max(500, 'Emotions too long').optional(),
   lessons: z.string().max(1000, 'Lessons too long').optional(),
   tags: z.string().optional(), // We'll handle comma separation
   screenshot_url: z.string().url('Invalid URL').optional().or(z.literal('')),
   setup_type: z.enum(['Type 1', 'Type 2', 'Type 3']).optional().or(z.literal('')),
   probability: z.enum(['High Prob', 'Low Prob']).optional().or(z.literal('')),
+  // New Checklist Fields
+  rule_in_plan: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_bos: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_liquidity: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_trend: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_news: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_rr: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_emotions: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  rule_lot_size: z.enum(['yes', 'no', 'n/a']).optional().or(z.literal('')),
+  emotions_array: z.array(z.string()).optional(),
+  lessons_learned: z.string().max(1000, 'Lessons too long').optional(),
 });
 
 type FormData = z.infer<typeof tradeSchema>;
@@ -121,8 +131,6 @@ export default function NewTrade() {
         risk_amount: existingTrade.risk_amount ?? '',
         reward_amount: existingTrade.reward_amount ?? '',
         strategy: existingTrade.strategy ?? '',
-        reasoning: existingTrade.reasoning ?? '',
-        emotions: existingTrade.emotions ?? '',
         lessons: existingTrade.lessons ?? '',
         tags: existingTrade.tags?.join(', ') ?? '',
         screenshot_url: existingTrade.screenshot_url ?? '',
@@ -157,12 +165,20 @@ export default function NewTrade() {
       reward_amount: data.reward_amount ? Number(data.reward_amount) : undefined,
       strategy: data.strategy?.trim() || undefined,
       reasoning: data.reasoning?.trim() || undefined,
-      emotions: data.emotions?.trim() || undefined,
-      lessons: data.lessons?.trim() || undefined,
       tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
       screenshot_url: data.screenshot_url || undefined,
       setup_type: data.setup_type || undefined,
       probability: data.probability || undefined,
+      rule_in_plan: data.rule_in_plan || undefined,
+      rule_bos: data.rule_bos || undefined,
+      rule_liquidity: data.rule_liquidity || undefined,
+      rule_trend: data.rule_trend || undefined,
+      rule_news: data.rule_news || undefined,
+      rule_rr: data.rule_rr || undefined,
+      rule_emotions: data.rule_emotions || undefined,
+      rule_lot_size: data.rule_lot_size || undefined,
+      emotions_array: data.emotions_array || undefined,
+      lessons_learned: data.lessons_learned?.trim() || undefined,
       needs_review: false, // Clearing review flag on save
     };
 
@@ -605,6 +621,51 @@ export default function NewTrade() {
                       )}
                     />
 
+                    <div className="space-y-4 pt-4 border-t">
+                      <h4 className="font-medium text-sm">Technical Rules checklist</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        {[
+                          { name: 'rule_in_plan', label: 'In trading plan?' },
+                          { name: 'rule_bos', label: 'BoS confirmed?' },
+                          { name: 'rule_liquidity', label: 'Liquidity identified?' },
+                          { name: 'rule_trend', label: 'With the trend?' },
+                          { name: 'rule_news', label: 'Checked news?' },
+                          { name: 'rule_rr', label: 'R:R at least 1:2?' },
+                          { name: 'rule_emotions', label: 'Emotionally calm?' },
+                          { name: 'rule_lot_size', label: 'Correct lot size?' },
+                        ].map((rule) => (
+                          <FormField
+                            key={rule.name}
+                            control={form.control}
+                            name={rule.name as any}
+                            render={({ field }) => (
+                              <FormItem className="space-y-1">
+                                <FormLabel className="text-xs">{rule.label}</FormLabel>
+                                <FormControl>
+                                  <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex gap-4"
+                                  >
+                                    {['yes', 'no', 'n/a'].map((option) => (
+                                      <FormItem key={option} className="flex items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                          <RadioGroupItem value={option} className="h-3 w-3" />
+                                        </FormControl>
+                                        <FormLabel className="text-xs font-normal cursor-pointer capitalize">
+                                          {option}
+                                        </FormLabel>
+                                      </FormItem>
+                                    ))}
+                                  </RadioGroup>
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
@@ -667,13 +728,53 @@ export default function NewTrade() {
 
                     <FormField
                       control={form.control}
-                      name="emotions"
+                      name="emotions_array"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Emotional State</FormLabel>
+                          <FormLabel>How were you feeling?</FormLabel>
+                          <FormControl>
+                            <div className="flex flex-wrap gap-2">
+                              {['Confident', 'Anxious', 'FOMO', 'Revenge'].map((feeling) => {
+                                const isSelected = (field.value || []).includes(feeling);
+                                return (
+                                  <Button
+                                    key={feeling}
+                                    type="button"
+                                    variant={isSelected ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                      const newValue = isSelected
+                                        ? (field.value || []).filter((f: string) => f !== feeling)
+                                        : [...(field.value || []), feeling];
+                                      field.onChange(newValue);
+                                    }}
+                                    className={cn(
+                                      "rounded-full px-4",
+                                      isSelected && feeling === 'Confident' && "bg-green-500 hover:bg-green-600",
+                                      isSelected && feeling === 'Anxious' && "bg-yellow-500 hover:bg-yellow-600",
+                                      isSelected && (feeling === 'FOMO' || feeling === 'Revenge') && "bg-red-500 hover:bg-red-600"
+                                    )}
+                                  >
+                                    {feeling}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="lessons_learned"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Lessons Learned</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="How were you feeling? Confident, anxious, FOMO, revenge trading?"
+                              placeholder="What did this trade teach you about your discipline or strategy?"
                               rows={3}
                               {...field}
                             />

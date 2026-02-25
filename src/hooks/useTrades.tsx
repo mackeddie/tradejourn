@@ -44,7 +44,7 @@ export function useTrades() {
   const addTrade = async (formData: TradeFormData) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    const { error } = await supabase.from('trades').insert({
+    const tradeData: any = {
       user_id: user.id,
       symbol: formData.symbol.toUpperCase(),
       asset_class: formData.asset_class,
@@ -67,14 +67,25 @@ export function useTrades() {
       reward_amount: formData.reward_amount || null,
       strategy: formData.strategy || null,
       reasoning: formData.reasoning || null,
-      emotions: formData.emotions || null,
       lessons: formData.lessons || null,
       tags: formData.tags || [],
       screenshot_url: formData.screenshot_url || null,
       needs_review: formData.needs_review || false,
       setup_type: formData.setup_type || null,
       probability: formData.probability || null,
-    });
+      rule_in_plan: formData.rule_in_plan || null,
+      rule_bos: formData.rule_bos || null,
+      rule_liquidity: formData.rule_liquidity || null,
+      rule_trend: formData.rule_trend || null,
+      rule_news: formData.rule_news || null,
+      rule_rr: formData.rule_rr || null,
+      rule_emotions: formData.rule_emotions || null,
+      rule_lot_size: formData.rule_lot_size || null,
+      emotions: formData.emotions_array || null,
+      lessons_learned: formData.lessons_learned || null,
+    };
+
+    const { error } = await supabase.from('trades').insert(tradeData);
 
     if (!error) {
       await fetchTrades();
@@ -90,7 +101,7 @@ export function useTrades() {
   const updateTrade = async (id: string, formData: Partial<TradeFormData>) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    const updateData: Record<string, unknown> = { ...formData };
+    const updateData: any = { ...formData };
 
     if (formData.entry_date) {
       updateData.entry_date = formData.entry_date.toISOString();
@@ -102,6 +113,12 @@ export function useTrades() {
       updateData.profit_loss = formData.status === 'loss'
         ? -Math.abs(formData.reward_amount)
         : formData.reward_amount;
+    }
+
+    // Map emotions_array to emotions column if present
+    if (formData.emotions_array) {
+      updateData.emotions = formData.emotions_array;
+      delete updateData.emotions_array;
     }
 
     const { error } = await supabase

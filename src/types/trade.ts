@@ -25,13 +25,22 @@ export interface Trade {
   reward_amount: number | null;
   strategy: string | null;
   reasoning: string | null;
-  emotions: string | null;
-  lessons: string | null;
+  lessons: string | null; // Keep for legacy
   tags: string[] | null;
   screenshot_url: string | null;
   needs_review: boolean | null;
   setup_type: string | null;
   probability: string | null;
+  rule_in_plan: string | null;
+  rule_bos: string | null;
+  rule_liquidity: string | null;
+  rule_trend: string | null;
+  rule_news: string | null;
+  rule_rr: string | null;
+  rule_emotions: string | null;
+  rule_lot_size: string | null;
+  emotions_array: string[] | null;
+  lessons_learned: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,13 +64,22 @@ export interface TradeFormData {
   reward_amount?: number;
   strategy?: string;
   reasoning?: string;
-  emotions?: string;
-  lessons?: string;
+  lessons?: string; // Legacy
   tags?: string[];
   screenshot_url?: string;
   needs_review?: boolean;
   setup_type?: string;
   probability?: string;
+  rule_in_plan?: string;
+  rule_bos?: string;
+  rule_liquidity?: string;
+  rule_trend?: string;
+  rule_news?: string;
+  rule_rr?: string;
+  rule_emotions?: string;
+  rule_lot_size?: string;
+  emotions_array?: string[];
+  lessons_learned?: string;
 }
 
 export interface Profile {
