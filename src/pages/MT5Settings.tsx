@@ -31,9 +31,6 @@ int OnInit() {
       Alert("Please set WebhookURL and ApiKey in EA inputs!");
       return INIT_FAILED;
    }
-   if(StringSubstr(WebhookURL, StringLen(WebhookURL)-1) == "/") {
-      WebDriver = WebhookURL;
-   }
    EventSetTimer(5);
    Print("TradeJournal EA v1.10 initialized.");
    return INIT_SUCCEEDED;
