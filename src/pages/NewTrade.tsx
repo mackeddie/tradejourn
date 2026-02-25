@@ -102,12 +102,13 @@ export default function NewTrade() {
       reward_amount: '',
       strategy: '',
       reasoning: '',
-      emotions: '',
       lessons: '',
       tags: '',
       screenshot_url: '',
       setup_type: '',
       probability: '',
+      emotions_array: [],
+      lessons_learned: '',
     },
   });
 
