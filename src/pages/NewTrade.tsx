@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -32,29 +32,30 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Target, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { PreTradeChecklist, PreTradeChecklistValues } from '@/components/tools/PreTradeChecklist';
 
 const tradeSchema = z.object({
-  symbol: z.string().min(1, 'Symbol is required').max(20, 'Symbol too long'),
+  symbol: z.string().min(1, 'Symbol is required').max(50, 'Symbol too long'),
   asset_class: z.enum(['forex', 'crypto', 'commodities', 'stocks']),
   direction: z.enum(['buy', 'sell']),
   entry_date: z.string().min(1, 'Entry date is required'),
   exit_date: z.string().optional(),
-  entry_price: z.coerce.number().positive('Entry price must be positive'),
-  exit_price: z.coerce.number().positive().optional().or(z.literal('')),
+  entry_price: z.coerce.number().min(0, 'Entry price cannot be negative'),
+  exit_price: z.coerce.number().min(0).optional().or(z.literal('')),
   lot_size: z.coerce.number().positive('Lot size must be positive'),
-  stop_loss: z.coerce.number().positive().optional().or(z.literal('')),
-  take_profit: z.coerce.number().positive().optional().or(z.literal('')),
+  stop_loss: z.coerce.number().min(0).optional().or(z.literal('')),
+  take_profit: z.coerce.number().min(0).optional().or(z.literal('')),
   status: z.enum(['win', 'loss', 'breakeven']),
   exit_reason: z.enum(['sl_hit', 'tp_hit', 'manual_close', 'breakeven']),
-  risk_reward_ratio: z.coerce.number().positive().optional().or(z.literal('')),
+  risk_reward_ratio: z.coerce.number().min(0).optional().or(z.literal('')),
   pips: z.coerce.number().optional().or(z.literal('')),
-  risk_amount: z.coerce.number().positive().optional().or(z.literal('')),
+  risk_amount: z.coerce.number().min(0).optional().or(z.literal('')),
   reward_amount: z.coerce.number().optional().or(z.literal('')),
   strategy: z.string().max(100, 'Strategy too long').optional(),
   reasoning: z.string().max(1000, 'Reasoning too long').optional(),
   lessons: z.string().max(1000, 'Lessons too long').optional(),
   tags: z.string().optional(), // We'll handle comma separation
-  screenshot_url: z.string().url('Invalid URL').optional().or(z.literal('')),
+  screenshot_url: z.string().optional().or(z.literal('')),
   setup_type: z.enum(['Type 1', 'Type 2', 'Type 3']).optional().or(z.literal('')),
   probability: z.enum(['High Prob', 'Low Prob']).optional().or(z.literal('')),
   // New Checklist Fields
@@ -74,12 +75,23 @@ type FormData = z.infer<typeof tradeSchema>;
 
 export default function NewTrade() {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('outcome');
   const { trades, addTrade, updateTrade } = useTrades();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const isEditing = Boolean(id);
   const existingTrade = isEditing ? trades.find(t => t.id === id) : null;
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'confluence' || existingTrade?.needs_review) {
+      setActiveTab('confluence');
+    }
+  }, [searchParams, existingTrade?.needs_review]);
+
+  const checklistPrefill = (location.state as { checklist?: PreTradeChecklistValues } | null)?.checklist;
 
   const form = useForm<FormData>({
     resolver: zodResolver(tradeSchema),
@@ -105,8 +117,16 @@ export default function NewTrade() {
       lessons: '',
       tags: '',
       screenshot_url: '',
-      setup_type: '',
-      probability: '',
+      setup_type: (checklistPrefill?.setup_type || '') as FormData['setup_type'],
+      probability: (checklistPrefill?.probability || '') as FormData['probability'],
+      rule_in_plan: checklistPrefill?.rule_in_plan || '',
+      rule_bos: checklistPrefill?.rule_bos || '',
+      rule_liquidity: checklistPrefill?.rule_liquidity || '',
+      rule_trend: checklistPrefill?.rule_trend || '',
+      rule_news: checklistPrefill?.rule_news || '',
+      rule_rr: checklistPrefill?.rule_rr || '',
+      rule_emotions: checklistPrefill?.rule_emotions || '',
+      rule_lot_size: checklistPrefill?.rule_lot_size || '',
       emotions_array: [],
       lessons_learned: '',
     },
@@ -132,17 +152,41 @@ export default function NewTrade() {
         risk_amount: existingTrade.risk_amount ?? '',
         reward_amount: existingTrade.reward_amount ?? '',
         strategy: existingTrade.strategy ?? '',
+        reasoning: existingTrade.reasoning ?? '',
         lessons: existingTrade.lessons ?? '',
         tags: existingTrade.tags?.join(', ') ?? '',
         screenshot_url: existingTrade.screenshot_url ?? '',
         setup_type: (existingTrade.setup_type as "Type 1" | "Type 2" | "Type 3") ?? '',
         probability: (existingTrade.probability as "High Prob" | "Low Prob") ?? '',
+        rule_in_plan: (existingTrade.rule_in_plan as FormData['rule_in_plan']) ?? '',
+        rule_bos: (existingTrade.rule_bos as FormData['rule_bos']) ?? '',
+        rule_liquidity: (existingTrade.rule_liquidity as FormData['rule_liquidity']) ?? '',
+        rule_trend: (existingTrade.rule_trend as FormData['rule_trend']) ?? '',
+        rule_news: (existingTrade.rule_news as FormData['rule_news']) ?? '',
+        rule_rr: (existingTrade.rule_rr as FormData['rule_rr']) ?? '',
+        rule_emotions: (existingTrade.rule_emotions as FormData['rule_emotions']) ?? '',
+        rule_lot_size: (existingTrade.rule_lot_size as FormData['rule_lot_size']) ?? '',
+        emotions_array: existingTrade.emotions_array ?? [],
+        lessons_learned: existingTrade.lessons_learned ?? '',
       });
     }
   }, [existingTrade]);
 
   const watchStatus = form.watch('status');
   const watchExitReason = form.watch('exit_reason');
+
+  const checklistValues: PreTradeChecklistValues = {
+    setup_type: form.watch('setup_type'),
+    probability: form.watch('probability'),
+    rule_in_plan: (form.watch('rule_in_plan') || '') as PreTradeChecklistValues['rule_in_plan'],
+    rule_bos: (form.watch('rule_bos') || '') as PreTradeChecklistValues['rule_bos'],
+    rule_liquidity: (form.watch('rule_liquidity') || '') as PreTradeChecklistValues['rule_liquidity'],
+    rule_trend: (form.watch('rule_trend') || '') as PreTradeChecklistValues['rule_trend'],
+    rule_news: (form.watch('rule_news') || '') as PreTradeChecklistValues['rule_news'],
+    rule_rr: (form.watch('rule_rr') || '') as PreTradeChecklistValues['rule_rr'],
+    rule_emotions: (form.watch('rule_emotions') || '') as PreTradeChecklistValues['rule_emotions'],
+    rule_lot_size: (form.watch('rule_lot_size') || '') as PreTradeChecklistValues['rule_lot_size'],
+  };
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
@@ -199,6 +243,18 @@ export default function NewTrade() {
     }
   };
 
+  const onError = (errors: any) => {
+    console.error('Form errors:', errors);
+    const firstErrorField = Object.keys(errors)[0];
+    const message = errors[firstErrorField]?.message || 'Please check all tabs.';
+
+    toast({
+      title: 'Validation Error',
+      description: `${firstErrorField ? `Issue with "${firstErrorField}": ` : ''}${message}`,
+      variant: 'destructive',
+    });
+  };
+
   return (
     <AppLayout>
       <div className="max-w-3xl mx-auto animate-fade-in">
@@ -215,8 +271,8 @@ export default function NewTrade() {
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <Tabs defaultValue="outcome" className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, onError)}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="outcome">Outcome</TabsTrigger>
                 <TabsTrigger value="details">Details</TabsTrigger>
@@ -564,108 +620,21 @@ export default function NewTrade() {
                     <CardDescription>What made this setup valid?</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="setup_type"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Setup Type</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="grid grid-cols-3 gap-4"
-                            >
-                              {['Type 1', 'Type 2', 'Type 3'].map((type) => (
-                                <FormItem key={type} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={type} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal cursor-pointer">
-                                    {type}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                    <PreTradeChecklist
+                      values={checklistValues}
+                      onChange={(values) => {
+                        form.setValue('setup_type', (values.setup_type || '') as FormData['setup_type']);
+                        form.setValue('probability', (values.probability || '') as FormData['probability']);
+                        form.setValue('rule_in_plan', values.rule_in_plan || '');
+                        form.setValue('rule_bos', values.rule_bos || '');
+                        form.setValue('rule_liquidity', values.rule_liquidity || '');
+                        form.setValue('rule_trend', values.rule_trend || '');
+                        form.setValue('rule_news', values.rule_news || '');
+                        form.setValue('rule_rr', values.rule_rr || '');
+                        form.setValue('rule_emotions', values.rule_emotions || '');
+                        form.setValue('rule_lot_size', values.rule_lot_size || '');
+                      }}
                     />
-
-                    <FormField
-                      control={form.control}
-                      name="probability"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Trade Probability</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="grid grid-cols-2 gap-4"
-                            >
-                              {['High Prob', 'Low Prob'].map((prob) => (
-                                <FormItem key={prob} className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <RadioGroupItem value={prob} />
-                                  </FormControl>
-                                  <FormLabel className="font-normal cursor-pointer">
-                                    {prob}
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="space-y-4 pt-4 border-t">
-                      <h4 className="font-medium text-sm">Technical Rules checklist</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                        {[
-                          { name: 'rule_in_plan', label: 'In trading plan?' },
-                          { name: 'rule_bos', label: 'BoS confirmed?' },
-                          { name: 'rule_liquidity', label: 'Liquidity identified?' },
-                          { name: 'rule_trend', label: 'With the trend?' },
-                          { name: 'rule_news', label: 'Checked news?' },
-                          { name: 'rule_rr', label: 'R:R at least 1:2?' },
-                          { name: 'rule_emotions', label: 'Emotionally calm?' },
-                          { name: 'rule_lot_size', label: 'Correct lot size?' },
-                        ].map((rule) => (
-                          <FormField
-                            key={rule.name}
-                            control={form.control}
-                            name={rule.name as any}
-                            render={({ field }) => (
-                              <FormItem className="space-y-1">
-                                <FormLabel className="text-xs">{rule.label}</FormLabel>
-                                <FormControl>
-                                  <RadioGroup
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                    className="flex gap-4"
-                                  >
-                                    {['yes', 'no', 'n/a'].map((option) => (
-                                      <FormItem key={option} className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                          <RadioGroupItem value={option} className="h-3 w-3" />
-                                        </FormControl>
-                                        <FormLabel className="text-xs font-normal cursor-pointer capitalize">
-                                          {option}
-                                        </FormLabel>
-                                      </FormItem>
-                                    ))}
-                                  </RadioGroup>
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField

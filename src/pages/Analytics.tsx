@@ -1,12 +1,13 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useTrades } from '@/hooks/useTrades';
 import { PairPerformance } from '@/components/analytics/PairPerformance';
+import { ConfluenceAnalytics } from '@/components/analytics/ConfluenceAnalytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { 
-  calculateStats, 
-  getEquityCurve, 
+import {
+  calculateStats,
+  getEquityCurve,
   getTradesByAssetClass,
   getMonthlyPerformance,
   getWinLossDistribution,
@@ -29,10 +30,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Target, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
   Activity,
   Percent,
   Download,
@@ -201,14 +202,14 @@ export default function Analytics() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={equityCurve}>
-                      <XAxis 
-                        dataKey="date" 
+                      <XAxis
+                        dataKey="date"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                       />
-                      <YAxis 
+                      <YAxis
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
@@ -297,14 +298,14 @@ export default function Analytics() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyData}>
-                      <XAxis 
+                      <XAxis
                         dataKey="month"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                       />
-                      <YAxis 
+                      <YAxis
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
@@ -323,8 +324,8 @@ export default function Analytics() {
                           return [value, 'Trades'];
                         }}
                       />
-                      <Bar 
-                        dataKey="profit" 
+                      <Bar
+                        dataKey="profit"
                         fill="hsl(var(--primary))"
                         radius={[4, 4, 0, 0]}
                       />
@@ -349,14 +350,14 @@ export default function Analytics() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dayData}>
-                      <XAxis 
+                      <XAxis
                         dataKey="day"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                       />
-                      <YAxis 
+                      <YAxis
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
@@ -375,8 +376,8 @@ export default function Analytics() {
                           return [value, 'Trades'];
                         }}
                       />
-                      <Bar 
-                        dataKey="profit" 
+                      <Bar
+                        dataKey="profit"
                         fill="hsl(var(--accent))"
                         radius={[4, 4, 0, 0]}
                       />
@@ -404,7 +405,7 @@ export default function Analytics() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={assetData} layout="vertical">
-                      <XAxis 
+                      <XAxis
                         type="number"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
@@ -412,7 +413,7 @@ export default function Analytics() {
                         axisLine={false}
                         tickFormatter={(value) => `$${value}`}
                       />
-                      <YAxis 
+                      <YAxis
                         type="category"
                         dataKey="name"
                         stroke="hsl(var(--muted-foreground))"
@@ -432,8 +433,8 @@ export default function Analytics() {
                           return [value, 'Trades'];
                         }}
                       />
-                      <Bar 
-                        dataKey="profit" 
+                      <Bar
+                        dataKey="profit"
                         fill="hsl(var(--primary))"
                         radius={[0, 4, 4, 0]}
                       />
@@ -458,7 +459,7 @@ export default function Analytics() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={strategyData.slice(0, 5)} layout="vertical">
-                      <XAxis 
+                      <XAxis
                         type="number"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
@@ -466,7 +467,7 @@ export default function Analytics() {
                         axisLine={false}
                         tickFormatter={(value) => `$${value}`}
                       />
-                      <YAxis 
+                      <YAxis
                         type="category"
                         dataKey="strategy"
                         stroke="hsl(var(--muted-foreground))"
@@ -487,8 +488,8 @@ export default function Analytics() {
                           return [value, name];
                         }}
                       />
-                      <Bar 
-                        dataKey="totalPL" 
+                      <Bar
+                        dataKey="totalPL"
                         fill="hsl(var(--accent))"
                         radius={[0, 4, 4, 0]}
                       />
@@ -502,6 +503,9 @@ export default function Analytics() {
 
         {/* Pair Performance */}
         <PairPerformance pairData={pairData} />
+
+        {/* Confluence Analytics */}
+        <ConfluenceAnalytics trades={trades} />
       </div>
     </AppLayout>
   );

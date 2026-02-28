@@ -152,11 +152,11 @@ export function getTradesByAssetClass(trades: Trade[]): { name: string; value: n
 
 export function getMonthlyPerformance(trades: Trade[]): { month: string; profit: number; trades: number; winRate: number }[] {
   const completedTrades = trades.filter(t => t.exit_date && t.status);
-  
+
   const grouped = completedTrades.reduce((acc, trade) => {
     const date = new Date(trade.exit_date!);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    
+
     if (!acc[monthKey]) {
       acc[monthKey] = { profit: 0, trades: 0, wins: 0 };
     }
@@ -197,12 +197,12 @@ export function getStrategyPerformance(trades: Trade[]): StrategyStats[] {
     acc[strategy].trades++;
     if (trade.status === 'win') acc[strategy].wins++;
     if (trade.status === 'loss') acc[strategy].losses++;
-    
+
     const pl = trade.reward_amount !== null
       ? (trade.status === 'loss' ? -Math.abs(trade.reward_amount) : trade.reward_amount)
       : (trade.profit_loss || 0);
     acc[strategy].totalPL += pl;
-    
+
     if (trade.risk_reward_ratio !== null) {
       acc[strategy].totalRR += trade.risk_reward_ratio;
       acc[strategy].rrCount++;
@@ -225,7 +225,7 @@ export function getStrategyPerformance(trades: Trade[]): StrategyStats[] {
 
 export function getExitReasonStats(trades: Trade[]): ExitReasonStats[] {
   const completedTrades = trades.filter(t => t.exit_reason);
-  
+
   const grouped = completedTrades.reduce((acc, trade) => {
     const reason = trade.exit_reason || 'unknown';
     if (!acc[reason]) {
@@ -319,4 +319,214 @@ export function getPairPerformance(trades: Trade[]): PairStats[] {
       totalPL: data.totalPL,
     }))
     .sort((a, b) => b.trades - a.trades);
+}
+
+export interface RuleStats {
+  rule: string;
+  trades: number;
+  wins: number;
+  winRate: number;
+  totalPL: number;
+}
+
+export function getRulePerformance(trades: Trade[]): RuleStats[] {
+  const completedTrades = trades.filter(t => t.status);
+
+  const rules = [
+    { key: 'rule_in_plan', label: 'In Plan' },
+    { key: 'rule_bos', label: 'BOS' },
+    { key: 'rule_liquidity', label: 'Liquidity' },
+    { key: 'rule_trend', label: 'Trend' },
+    { key: 'rule_news', label: 'News Check' },
+    { key: 'rule_rr', label: '1:2 R:R' }
+  ];
+
+  return rules.map(rule => {
+    // Only count trades where this specific rule was marked "yes"
+    const tradesWithRule = completedTrades.filter(t => (t as any)[rule.key] === 'yes');
+    const wins = tradesWithRule.filter(t => t.status === 'win').length;
+
+    const totalPL = tradesWithRule.reduce((sum, t) => {
+      const pl = t.reward_amount !== null
+        ? (t.status === 'loss' ? -Math.abs(t.reward_amount) : t.reward_amount)
+        : (t.profit_loss || 0);
+      return sum + pl;
+    }, 0);
+
+    return {
+      rule: rule.label,
+      trades: tradesWithRule.length,
+      wins,
+      winRate: tradesWithRule.length > 0 ? (wins / tradesWithRule.length) * 100 : 0,
+      totalPL
+    };
+  }).filter(stat => stat.trades > 0);
+}
+
+export interface EmotionStats {
+  emotion: string;
+  count: number;
+  totalPL: number;
+  avgPL: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  expectancy: number;
+}
+
+export function getEmotionPerformance(trades: Trade[]): EmotionStats[] {
+  const completedTrades = trades.filter(t => t.status);
+
+  const grouped = completedTrades.reduce((acc, trade) => {
+    let rawEmotions: string[] = [];
+
+    // 1. Extract from emotions_array (mapped from 'emotions' column)
+    const stored = trade.emotions_array as any;
+
+    if (Array.isArray(stored)) {
+      rawEmotions = [...stored];
+    } else if (typeof stored === 'string') {
+      const str = (stored as string).trim();
+      if (str.startsWith('[') && str.endsWith(']')) {
+        try { rawEmotions = JSON.parse(str); } catch (e) { rawEmotions = [str]; }
+      } else if (str.startsWith('{') && str.endsWith('}')) {
+        // Handle Postgres text[] format: {FOMO,Revenge}
+        rawEmotions = str.substring(1, str.length - 1).split(',').map(s => s.replace(/"/g, '').trim());
+      } else if (str.includes(',')) {
+        rawEmotions = str.split(',').map(s => s.trim());
+      } else if (str) {
+        rawEmotions = [str];
+      }
+    }
+
+    // 2. Add rule_emotions if present (from confluence checklist)
+    if (trade.rule_emotions === 'yes') {
+      rawEmotions.push('Calm');
+    } else if (trade.rule_emotions === 'no') {
+      rawEmotions.push('Anxious');
+    }
+
+    // 3. Normalize & Deduplicate
+    // We trim, capitalize properly, and filter out junk data (like single-char remnants)
+    const normalizedEmotions = Array.from(new Set(
+      rawEmotions
+        .map(e => String(e).trim())
+        .filter(e => e.length > 1) // Ignore junk like 'C' 'o' '[' ','
+        .map(e => {
+          // Special Case for common acronyms
+          if (e.toUpperCase() === 'FOMO') return 'FOMO';
+          // General Title Case: "anxious" -> "Anxious"
+          return e.charAt(0).toUpperCase() + e.slice(1).toLowerCase();
+        })
+    ));
+
+    normalizedEmotions.forEach(emotion => {
+      if (!acc[emotion]) {
+        acc[emotion] = {
+          count: 0,
+          totalPL: 0,
+          wins: 0,
+          losses: 0,
+          winAmount: 0,
+          lossAmount: 0
+        };
+      }
+      acc[emotion].count++;
+
+      const pl = trade.reward_amount !== null
+        ? (trade.status === 'loss' ? -Math.abs(trade.reward_amount) : trade.reward_amount)
+        : (trade.profit_loss || 0);
+
+      acc[emotion].totalPL += pl;
+
+      if (trade.status === 'win') {
+        acc[emotion].wins++;
+        acc[emotion].winAmount += Math.abs(pl);
+      } else if (trade.status === 'loss') {
+        acc[emotion].losses++;
+        acc[emotion].lossAmount += Math.abs(pl);
+      }
+    });
+
+    return acc;
+  }, {} as Record<string, { count: number; totalPL: number; wins: number; losses: number; winAmount: number; lossAmount: number; }>);
+
+  return Object.entries(grouped).map(([emotion, data]) => {
+    const winRate = data.count > 0 ? (data.wins / data.count) : 0;
+    const avgWin = data.wins > 0 ? data.winAmount / data.wins : 0;
+    const avgLoss = data.losses > 0 ? data.lossAmount / data.losses : 0;
+
+    const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
+
+    return {
+      emotion,
+      count: data.count,
+      totalPL: data.totalPL,
+      avgPL: data.count > 0 ? data.totalPL / data.count : 0,
+      wins: data.wins,
+      losses: data.losses,
+      winRate: winRate * 100,
+      expectancy
+    };
+  }).filter(e => e.count > 0)
+    .sort((a, b) => b.expectancy - a.expectancy);
+}
+
+export interface SetupQualityStats {
+  quality: string;
+  trades: number;
+  wins: number;
+  winRate: number;
+  totalPL: number;
+  expectancy: number;
+}
+
+export function getSetupQualityStats(trades: Trade[]): SetupQualityStats[] {
+  const completedTrades = trades.filter(t => t.status && t.setup_type);
+
+  const grouped = completedTrades.reduce((acc, trade) => {
+    const quality = trade.setup_type!;
+    if (!acc[quality]) acc[quality] = { trades: [], wins: 0, losses: 0, totalPL: 0, totalWinAmount: 0, totalLossAmount: 0 };
+
+    acc[quality].trades.push(trade);
+
+    const pl = trade.reward_amount !== null
+      ? (trade.status === 'loss' ? -Math.abs(trade.reward_amount) : trade.reward_amount)
+      : (trade.profit_loss || 0);
+
+    acc[quality].totalPL += pl;
+
+    if (trade.status === 'win') {
+      acc[quality].wins++;
+      acc[quality].totalWinAmount += Math.abs(pl);
+    } else if (trade.status === 'loss') {
+      acc[quality].losses++;
+      acc[quality].totalLossAmount += Math.abs(pl);
+    }
+
+    return acc;
+  }, {} as Record<string, { trades: Trade[], wins: number; losses: number; totalPL: number, totalWinAmount: number, totalLossAmount: number }>);
+
+  return Object.entries(grouped).map(([quality, data]) => {
+    const totalCount = data.trades.length;
+    const winRate = totalCount > 0 ? data.wins / totalCount : 0;
+    const lossRate = totalCount > 0 ? data.losses / totalCount : 0;
+
+    const avgWin = data.wins > 0 ? data.totalWinAmount / data.wins : 0;
+    const avgLoss = data.losses > 0 ? data.totalLossAmount / data.losses : 0;
+
+    const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+
+    return {
+      quality,
+      trades: totalCount,
+      wins: data.wins,
+      winRate: winRate * 100,
+      totalPL: data.totalPL,
+      expectancy
+    };
+  }).sort((a, b) => {
+    const order: Record<string, number> = { 'A+': 3, 'A': 2, 'B': 1, 'C': 0 };
+    return (order[b.quality] || 0) - (order[a.quality] || 0);
+  });
 }

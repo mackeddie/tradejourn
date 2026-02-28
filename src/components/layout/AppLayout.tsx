@@ -24,6 +24,8 @@ import {
   Plug,
   Wrench,
 } from 'lucide-react';
+import { MT5ReviewPrompt } from '@/components/trades/MT5ReviewPrompt';
+import { PWAInstallButton } from '@/components/layout/PWAInstallButton';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -83,6 +85,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Actions */}
             <div className="flex items-center gap-3">
+              <PWAInstallButton />
               <Button asChild size="sm" className="hidden sm:flex">
                 <Link to="/trades/new">
                   <Plus className="w-4 h-4 mr-1" />
@@ -188,6 +191,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="container mx-auto px-4 py-6 pb-24 md:pb-6">
         {children}
       </main>
+      <MT5ReviewPrompt />
     </div>
   );
 }

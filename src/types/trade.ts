@@ -41,6 +41,7 @@ export interface Trade {
   rule_lot_size: string | null;
   emotions_array: string[] | null;
   lessons_learned: string | null;
+  mt5_ticket?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +81,7 @@ export interface TradeFormData {
   rule_lot_size?: string;
   emotions_array?: string[];
   lessons_learned?: string;
+  mt5_ticket?: string;
 }
 
 export interface Profile {

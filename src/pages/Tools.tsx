@@ -1,10 +1,20 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RiskCalculator } from '@/components/tools/RiskCalculator';
-import { PreTradeChecklist } from '@/components/tools/PreTradeChecklist';
+import { PreTradeChecklist, PreTradeChecklistValues } from '@/components/tools/PreTradeChecklist';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Calculator, ClipboardCheck, Wrench } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function Tools() {
+    const [checklistValues, setChecklistValues] = useState<PreTradeChecklistValues>({});
+    const navigate = useNavigate();
+
+    const handleUseInNewTrade = () => {
+        navigate('/trades/new', { state: { checklist: checklistValues } });
+    };
+
     return (
         <AppLayout>
             <div className="max-w-6xl mx-auto animate-fade-in">
@@ -25,7 +35,18 @@ export default function Tools() {
                         <RiskCalculator />
                     </div>
                     <div className="space-y-4">
-                        <PreTradeChecklist />
+                        <PreTradeChecklist
+                            values={checklistValues}
+                            onChange={setChecklistValues}
+                        />
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <p>
+                                Use this checklist before taking a trade. You can send these answers into a new journal entry.
+                            </p>
+                            <Button size="sm" onClick={handleUseInNewTrade}>
+                                Use in new trade
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

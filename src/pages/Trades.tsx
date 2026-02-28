@@ -41,14 +41,16 @@ import {
   Upload,
   Trash2,
   Pencil,
+  ClipboardCheck,
   ArrowUpRight,
   ArrowDownRight,
   Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PreTradeChecklist, PreTradeChecklistValues } from '@/components/tools/PreTradeChecklist';
 
 export default function Trades() {
-  const { trades, loading, deleteTrade } = useTrades();
+  const { trades, loading, deleteTrade, updateTrade } = useTrades();
   const [search, setSearch] = useState('');
   const [assetFilter, setAssetFilter] = useState<AssetClass | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<TradeStatus | 'all'>('all');
@@ -261,13 +263,26 @@ export default function Trades() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
+                              {trade.needs_review && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                                  asChild
+                                >
+                                  <Link to={`/trades/${trade.id}?tab=confluence`}>
+                                    <ClipboardCheck className="w-4 h-4 mr-1" />
+                                    Fill checklist
+                                  </Link>
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 asChild
                               >
-                                <Link to={`/trades/${trade.id}/edit`}>
+                                <Link to={`/trades/${trade.id}`}>
                                   <Pencil className="w-4 h-4 text-muted-foreground" />
                                 </Link>
                               </Button>
@@ -308,31 +323,47 @@ export default function Trades() {
                           <TableRow className="bg-muted/30 border-t-0 hover:bg-muted/30">
                             <TableCell colSpan={10} className="p-0">
                               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2 duration-200">
+                                {trade.needs_review && (
+                                  <div className="md:col-span-2 p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between gap-4">
+                                    <p className="text-sm text-muted-foreground">
+                                      This trade was synced from MT5. Add setup type, probability, and rule answers so it’s fully logged.
+                                    </p>
+                                    <Button size="sm" asChild>
+                                      <Link to={`/trades/${trade.id}?tab=confluence`}>Fill checklist</Link>
+                                    </Button>
+                                  </div>
+                                )}
                                 {/* Technical Checklist */}
                                 <div className="space-y-4">
-                                  <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Technical Review</h4>
-                                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                    {[
-                                      { label: 'In Plan', value: trade.rule_in_plan },
-                                      { label: 'BoS', value: trade.rule_bos },
-                                      { label: 'Liquidity', value: trade.rule_liquidity },
-                                      { label: 'Trend', value: trade.rule_trend },
-                                      { label: 'News Check', value: trade.rule_news },
-                                      { label: 'R:R 1:2', value: trade.rule_rr },
-                                      { label: 'Calm', value: trade.rule_emotions },
-                                      { label: 'Position Size', value: trade.rule_lot_size },
-                                    ].map((rule) => rule.value && (
-                                      <div key={rule.label} className="flex items-center justify-between p-2 rounded bg-background/50 border border-border/50">
-                                        <span className="text-muted-foreground">{rule.label}</span>
-                                        <Badge
-                                          variant={rule.value === 'yes' ? 'default' : rule.value === 'no' ? 'destructive' : 'outline'}
-                                          className="text-[10px] h-4 py-0"
-                                        >
-                                          {rule.value.toUpperCase()}
-                                        </Badge>
-                                      </div>
-                                    ))}
-                                  </div>
+                                  <PreTradeChecklist
+                                    values={{
+                                      setup_type: trade.setup_type || '',
+                                      probability: trade.probability || '',
+                                      rule_in_plan: (trade.rule_in_plan || '') as PreTradeChecklistValues['rule_in_plan'],
+                                      rule_bos: (trade.rule_bos || '') as PreTradeChecklistValues['rule_bos'],
+                                      rule_liquidity: (trade.rule_liquidity || '') as PreTradeChecklistValues['rule_liquidity'],
+                                      rule_trend: (trade.rule_trend || '') as PreTradeChecklistValues['rule_trend'],
+                                      rule_news: (trade.rule_news || '') as PreTradeChecklistValues['rule_news'],
+                                      rule_rr: (trade.rule_rr || '') as PreTradeChecklistValues['rule_rr'],
+                                      rule_emotions: (trade.rule_emotions || '') as PreTradeChecklistValues['rule_emotions'],
+                                      rule_lot_size: (trade.rule_lot_size || '') as PreTradeChecklistValues['rule_lot_size'],
+                                    }}
+                                    onChange={(newValues) => {
+                                      updateTrade(trade.id, {
+                                        setup_type: newValues.setup_type,
+                                        probability: newValues.probability,
+                                        rule_in_plan: newValues.rule_in_plan,
+                                        rule_bos: newValues.rule_bos,
+                                        rule_liquidity: newValues.rule_liquidity,
+                                        rule_trend: newValues.rule_trend,
+                                        rule_news: newValues.rule_news,
+                                        rule_rr: newValues.rule_rr,
+                                        rule_emotions: newValues.rule_emotions,
+                                        rule_lot_size: newValues.rule_lot_size,
+                                      });
+                                    }}
+                                    hideStatusBanner
+                                  />
                                 </div>
 
                                 {/* Emotions and Lessons */}
@@ -340,23 +371,36 @@ export default function Trades() {
                                   <div className="space-y-3">
                                     <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Psychology & Feelings</h4>
                                     <div className="flex flex-wrap gap-2">
-                                      {trade.emotions_array && trade.emotions_array.length > 0 ? (
-                                        trade.emotions_array.map((feeling) => (
-                                          <Badge
+                                      {['Confident', 'Anxious', 'FOMO', 'Revenge'].map((feeling) => {
+                                        const isSelected = (trade.emotions_array || []).includes(feeling);
+                                        return (
+                                          <Button
                                             key={feeling}
+                                            type="button"
+                                            variant={isSelected ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => {
+                                              const currentEmotions = trade.emotions_array || [];
+                                              const newEmotions = isSelected
+                                                ? currentEmotions.filter(f => f !== feeling)
+                                                : [...currentEmotions, feeling];
+
+                                              updateTrade(trade.id, {
+                                                emotions_array: newEmotions
+                                              });
+                                            }}
                                             className={cn(
-                                              "rounded-full",
-                                              feeling === 'Confident' && "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30",
-                                              feeling === 'Anxious' && "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
-                                              (feeling === 'FOMO' || feeling === 'Revenge') && "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30"
+                                              "rounded-full px-4 h-8 text-xs font-normal transition-all",
+                                              isSelected && feeling === 'Confident' && "bg-green-500 hover:bg-green-600 border-none",
+                                              isSelected && feeling === 'Anxious' && "bg-yellow-500 hover:bg-yellow-600 border-none",
+                                              isSelected && (feeling === 'FOMO' || feeling === 'Revenge') && "bg-red-500 hover:bg-red-600 border-none",
+                                              !isSelected && "hover:bg-accent hover:text-accent-foreground text-muted-foreground border-dashed"
                                             )}
                                           >
                                             {feeling}
-                                          </Badge>
-                                        ))
-                                      ) : (
-                                        <span className="text-sm text-muted-foreground italic">No emotions recorded</span>
-                                      )}
+                                          </Button>
+                                        );
+                                      })}
                                     </div>
                                   </div>
 

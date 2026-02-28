@@ -80,24 +80,29 @@ export default function Dashboard() {
         </div>
 
         {/* Needs Review Alert */}
-        {trades.filter(t => t.needs_review).length > 0 && (
-          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Target className="w-5 h-5 text-primary" />
+        {trades.filter(t => t.needs_review).length > 0 && (() => {
+          const firstReview = trades.find(t => t.needs_review);
+          return (
+            <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <Target className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Review Pending</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You have {trades.filter(t => t.needs_review).length} trade(s) from MT5. Fill in the checklist and confluence for each.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">Review Pending</h3>
-                <p className="text-sm text-muted-foreground">
-                  You have {trades.filter(t => t.needs_review).length} new trades from MT5 that need setup details.
-                </p>
-              </div>
+              <Button asChild size="sm">
+                <Link to={firstReview ? `/trades/${firstReview.id}?tab=confluence` : '/trades'}>
+                  Fill checklist
+                </Link>
+              </Button>
             </div>
-            <Button asChild size="sm">
-              <Link to="/trades">Review Now</Link>
-            </Button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -19,6 +19,40 @@ export function useTrades() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`trades-realtime-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'trades',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newTrade = payload.new as any;
+          const mappedTrade = {
+            ...newTrade,
+            emotions_array: newTrade.emotions || []
+          } as unknown as Trade;
+
+          setTrades((prev) => {
+            const exists = prev.some((t) => t.id === mappedTrade.id);
+            if (exists) return prev;
+            return [mappedTrade, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchTrades = async () => {
     if (!user) return;
 
@@ -36,7 +70,11 @@ export function useTrades() {
         variant: 'destructive',
       });
     } else {
-      setTrades((data || []) as unknown as Trade[]);
+      const mappedTrades = (data || []).map(t => ({
+        ...t,
+        emotions_array: (t as any).emotions || []
+      }));
+      setTrades(mappedTrades as unknown as Trade[]);
     }
     setLoading(false);
   };
